@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "tropimon_damage_calc",
+  "version": "${version}",
+  "name": "Tropimon Damage Calculator",
+  "description": "Client-side Cobblemon damage calculator for Tropimon.",
+  "authors": [
+    "Julien"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "fr.tropimon.damagecalc.TropimonDamageCalcClient"
+    ]
+  },
+  "mixins": [
+    "tropimon_damage_calc.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "1.21.1",
+    "fabric-api": "*",
+    "cobblemon": ">=1.7.2 <1.8.0"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}

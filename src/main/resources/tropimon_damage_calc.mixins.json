@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "package": "fr.tropimon.damagecalc.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "BattleGuiMixin",
+    "BattleMessagePacketMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

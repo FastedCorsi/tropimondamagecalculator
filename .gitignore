@@ -1,0 +1,26 @@
+# Gradle and build output
+.gradle/
+build/
+out/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Minecraft development runtime
+run/
+logs/
+
+# Local projects and installed mod files
+mods/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# Extracted third-party audit data
+tools/cobblemon-lang-audit/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
