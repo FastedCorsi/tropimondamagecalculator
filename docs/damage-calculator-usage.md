@@ -2,48 +2,45 @@
 
 ## Installation
 
-Copier le fichier `build/libs/tropimon-damage-calc-0.1.0.jar` dans le dossier `mods` du client Minecraft Fabric 1.21.1.
+Placez le JAR `tropimon-damage-calc-0.3.0.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
 
-Le mod fonctionne sans Cobblemon, mais les boutons de capture live ne se remplissent que si une entite Cobblemon est pointee en jeu.
+## Ouvrir le calculateur
 
-## Ouvrir l'assistant
+- Touche par defaut sur une nouvelle installation : `B`.
+- Raccourci modifiable dans `Options > Controles > Assignation des touches > Tropimon Damage Calculator`.
+- Commande client : `/tropicalc`.
+- En combat Cobblemon : bouton `Calc` integre a l'interface de combat.
 
-- Touche par defaut : `O`.
-- L'ecran ne met pas le jeu en pause.
+Minecraft conserve la touche deja choisie lors d'une mise a jour du mod.
 
 ## Utilisation rapide
 
-1. Pointer un Pokemon Cobblemon en jeu.
-2. Ouvrir l'assistant avec `O`.
-3. Cliquer sur `Att <- cible` ou `Def <- cible`.
-4. Ajuster les champs inconnus : item, ability, nature, EV, boosts, Tera, weather, terrain, screens.
-5. Lire la ligne de resultat en haut et les 16 rolls dans le bloc `Detail`.
+1. Ouvrez le calculateur hors combat ou depuis l'interface Cobblemon.
+2. Choisissez les deux Pokemon avec les champs de recherche.
+3. Selectionnez les attaques de chaque cote.
+4. Ajustez les informations connues : niveau, EV, IV, nature, talent, objet, statut et boosts.
+5. Configurez la meteo, le terrain et les protections de chaque cote.
+6. Lisez les fourchettes de degats affichees sur les lignes d'attaques.
 
-## Options de terrain utiles
+Une option choisie dans une liste est appliquee immediatement. Il n'est pas necessaire de saisir son nom complet.
 
-L'ecran central permet maintenant de changer rapidement :
+## Synchronisation Cobblemon
 
-- Singles/Doubles ;
-- Sun/Rain/Sand/Snow ;
-- Electric/Grassy/Misty/Psychic Terrain ;
-- crit, Helping Hand, Friend Guard ;
-- Reflect, Light Screen, Aurora Veil ;
-- Stealth Rock et 0 a 3 couches de Spikes.
+Le bouton `Sync` relit les informations visibles du combat. Le calculateur peut notamment recuperer :
 
-Les hazards modifient la chance de KO affichee comme un scenario apres entree sur le terrain. Heavy-Duty Boots annule ces degats d'entree.
+- le Pokemon actif du joueur et son set prive disponible cote client ;
+- le Pokemon adverse actif et les informations revelees ;
+- les formes regionales et formes de combat ;
+- les PV actuels, statuts et boosts visibles ;
+- la meteo et certaines conditions de terrain ;
+- l'equipe adverse exposee par les ecrans Team Preview pris en charge.
 
-## Donnees live Cobblemon
+Les informations adverses cachees ne sont pas inventees et restent modifiables manuellement.
 
-Le MVP lit cote client :
+## Solo et Duo
 
-- l'entite Cobblemon pointee ;
-- le nom affiche ;
-- le niveau si le nom contient `Lv`, `Lvl`, `Nv` ou `Niveau`.
+Le mode Duo ajoute les mecanismes propres aux combats multiples : attaques de zone, nombre de cibles, Helping Hand, Friend Guard, Wide Guard et talent du partenaire.
 
-Les autres informations restent editables manuellement, car elles ne sont pas toujours disponibles cote client selon le serveur.
+## Source des donnees
 
-## Limites MVP
-
-- Le dex embarque contient une selection de Pokemon, moves, items et abilities courants.
-- Les calculs couvrent les cas standards Gen 9, mais pas encore tous les effets speciaux Showdown.
-- Les chances de KO ne tiennent pas encore compte des degats/residus de fin de tour.
+Les Pokemon, formes, attaques, objets, talents, modeles et traductions sont lus depuis le contenu Cobblemon installe. Le mod n'utilise ni API Pokemon externe ni base de donnees distante.
