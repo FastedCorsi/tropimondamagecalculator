@@ -29,6 +29,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
 
     private static KeyBinding openCalculatorKey;
     private static boolean rawOpenKeyDown;
+    private static volatile boolean openCalculatorRequested;
     private static boolean loadMessageSent;
     private static boolean lastBattleButtonVisible;
     private static long nextBattleAutoSyncTick;
@@ -66,11 +67,17 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
                 "category.tropimon_damage_calc"
         ));
 
-        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            registerCommand(dispatcher, "tropicalc", true);
-            registerCommand(dispatcher, "Tropicalc", true);
-            registerCommand(dispatcher, "damagecalc", false);
-        });
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(
+                ClientCommandManager.literal("tropicalc")
+                        .executes(context -> {
+                            openCalculatorRequested = true;
+                            return 1;
+                        })
+                        .then(ClientCommandManager.literal("debug").executes(context -> {
+                            MinecraftClient.getInstance().execute(TropimonDamageCalcClient::showDiagnostics);
+                            return 1;
+                        }))
+        ));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CobblemonBattleDataProvider.captureVisibleTeamPreview(client.currentScreen);
@@ -81,6 +88,11 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
                         "message.tropimon_damage_calc.loaded",
                         openCalculatorKey.getBoundKeyLocalizedText()
                 ), true);
+            }
+
+            if (openCalculatorRequested) {
+                openCalculatorRequested = false;
+                openCalculator();
             }
 
             while (openCalculatorKey.wasPressed()) {
@@ -112,23 +124,6 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
             return InputUtil.isKeyPressed(window, boundKey.getCode());
         }
         return openCalculatorKey.isPressed();
-    }
-
-    private static void registerCommand(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher,
-                                        String name,
-                                        boolean includeDebug) {
-        var command = ClientCommandManager.literal(name)
-                .executes(context -> {
-                    MinecraftClient.getInstance().execute(TropimonDamageCalcClient::openCalculator);
-                    return 1;
-                });
-        if (includeDebug) {
-            command.then(ClientCommandManager.literal("debug").executes(context -> {
-                MinecraftClient.getInstance().execute(TropimonDamageCalcClient::showDiagnostics);
-                return 1;
-            }));
-        }
-        dispatcher.register(command);
     }
 
     public static void renderBattleGuiButton(DrawContext context, int mouseX, int mouseY, Object battleGui) {
