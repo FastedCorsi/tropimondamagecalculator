@@ -77,16 +77,17 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
 
             if (!loadMessageSent && client.player != null) {
                 loadMessageSent = true;
-                client.player.sendMessage(Text.translatable("message.tropimon_damage_calc.loaded"), true);
+                client.player.sendMessage(Text.translatable(
+                        "message.tropimon_damage_calc.loaded",
+                        openCalculatorKey.getBoundKeyLocalizedText()
+                ), true);
             }
 
             while (openCalculatorKey.wasPressed()) {
                 openCalculator();
             }
 
-            boolean rawPressed = client.currentScreen == null
-                    && client.getWindow() != null
-                    && InputUtil.isKeyPressed(client.getWindow().getHandle(), GLFW.GLFW_KEY_B);
+            boolean rawPressed = client.currentScreen == null && isConfiguredOpenKeyPressed(client);
             if (rawPressed && !rawOpenKeyDown) {
                 openCalculator();
             }
@@ -95,6 +96,22 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
             logBattleButtonVisibility(client);
             autoSyncOpenCalculator(client);
         });
+    }
+
+    private static boolean isConfiguredOpenKeyPressed(MinecraftClient client) {
+        if (openCalculatorKey == null || openCalculatorKey.isUnbound() || client.getWindow() == null) {
+            return false;
+        }
+
+        InputUtil.Key boundKey = KeyBindingHelper.getBoundKeyOf(openCalculatorKey);
+        long window = client.getWindow().getHandle();
+        if (boundKey.getCategory() == InputUtil.Type.MOUSE) {
+            return GLFW.glfwGetMouseButton(window, boundKey.getCode()) == GLFW.GLFW_PRESS;
+        }
+        if (boundKey.getCategory() == InputUtil.Type.KEYSYM) {
+            return InputUtil.isKeyPressed(window, boundKey.getCode());
+        }
+        return openCalculatorKey.isPressed();
     }
 
     private static void registerCommand(com.mojang.brigadier.CommandDispatcher<net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource> dispatcher,

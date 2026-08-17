@@ -1,7 +1,7 @@
 {
   "category.tropimon_damage_calc": "Tropimon Damage Calculator",
   "key.tropimon_damage_calc.open": "Ouvrir le calculateur de dégâts",
-  "message.tropimon_damage_calc.loaded": "Tropimon Damage Calculator chargé - touche B ou /Tropicalc",
+  "message.tropimon_damage_calc.loaded": "Tropimon Damage Calculator chargé - touche %s ou /Tropicalc",
   "screen.tropimon_damage_calc.title": "Tropimon Damage Calculator",
   "screen.tropimon_damage_calc.close": "Fermer",
   "screen.tropimon_damage_calc.search.pokemon": "Chercher un Pokémon",
