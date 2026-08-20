@@ -43,6 +43,11 @@ tasks.processResources {
 tasks.register<Copy>("installTropimonLocal") {
     dependsOn(tasks.remapJar)
     val tropimonMods = file("${System.getProperty("user.home")}/AppData/Roaming/.tropimon/mods")
+    doFirst {
+        project.delete(fileTree(tropimonMods) {
+            include("TropimonDamageCalc-*.jar")
+        })
+    }
     from(tasks.remapJar.flatMap { it.archiveFile })
     into(tropimonMods)
     rename { "TropimonDamageCalc-${project.version}+1.21.1-LOCAL.jar" }
