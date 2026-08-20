@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.minecraft.client.MinecraftClient;
@@ -78,6 +79,9 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
                             return 1;
                         }))
         ));
+
+        ClientReceiveMessageEvents.GAME.register((message, overlay) ->
+                CobblemonBattleDataProvider.observeSystemMessage(message));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             CobblemonBattleDataProvider.captureVisibleTeamPreview(client.currentScreen);

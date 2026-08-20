@@ -57,6 +57,8 @@ final class CobblemonBattleDataProvider {
     private static String loggedLocalHydration = "";
     private static Object randomBattleIdentity;
     private static Boolean randomBattleDetected;
+    private static long randomBattleQueueExpiresAt;
+    private static final long RANDOM_BATTLE_QUEUE_TTL_MS = 900_000L;
 
     private CobblemonBattleDataProvider() {
     }
@@ -760,6 +762,12 @@ final class CobblemonBattleDataProvider {
         if (randomBattleDetected != null) {
             return randomBattleDetected;
         }
+        if (System.currentTimeMillis() <= randomBattleQueueExpiresAt) {
+            randomBattleQueueExpiresAt = 0L;
+            randomBattleDetected = true;
+            TropimonDamageCalcClient.LOGGER.info("[CalcDBG] random battle detected source=queue-message");
+            return true;
+        }
         Object format = invokeOptional(battle, "getBattleFormat");
         Object battleType = invokeOptional(format, "getBattleType");
         if (randomFormatLabel(text(invokeOptional(format, "getMod")),
@@ -786,22 +794,31 @@ final class CobblemonBattleDataProvider {
                 persistentMemberFound = true;
             }
         }
-        if (converted.size() < 2) {
+        if (converted.size() < 6) {
             return false;
         }
-        boolean uniformEvs = true;
-        Map<Stat, Integer> template = converted.getFirst().evs;
-        for (PokemonSet pokemon : converted) {
-            if (!template.equals(pokemon.evs)) {
-                uniformEvs = false;
-                break;
-            }
-        }
-        randomBattleDetected = !persistentMemberFound && uniformEvs;
+        randomBattleDetected = isGeneratedRandomTeam(converted.size(), persistentMemberFound);
         TropimonDamageCalcClient.LOGGER.info(
-                "[CalcDBG] random battle detected={} source=generated-team size={} uniformEvs={} persistentMember={}",
-                randomBattleDetected, converted.size(), uniformEvs, persistentMemberFound);
+                "[CalcDBG] random battle detected={} source=generated-team size={} persistentMember={}",
+                randomBattleDetected, converted.size(), persistentMemberFound);
         return randomBattleDetected;
+    }
+
+    static void observeSystemMessage(Text message) {
+        if (message == null || !isRandomBattleQueueMessage(message.getString())) {
+            return;
+        }
+        randomBattleQueueExpiresAt = System.currentTimeMillis() + RANDOM_BATTLE_QUEUE_TTL_MS;
+        randomBattleDetected = null;
+        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] random battle queue message detected");
+    }
+
+    static boolean isRandomBattleQueueMessage(String message) {
+        return TropimonDex.normalize(message).contains("randombattle");
+    }
+
+    static boolean isGeneratedRandomTeam(int teamSize, boolean persistentMemberFound) {
+        return teamSize >= 6 && !persistentMemberFound;
     }
 
     static boolean randomFormatLabel(String... values) {
@@ -1681,6 +1698,7 @@ final class CobblemonBattleDataProvider {
         loggedLocalHydration = "";
         randomBattleIdentity = null;
         randomBattleDetected = null;
+        randomBattleQueueExpiresAt = 0L;
         previewOpponentRosterExpiresAt = 0L;
         CobblemonBattleConditionTracker.resetForBattle(null);
     }

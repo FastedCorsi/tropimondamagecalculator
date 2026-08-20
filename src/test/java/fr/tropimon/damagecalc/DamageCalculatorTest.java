@@ -94,6 +94,17 @@ final class DamageCalculatorTest {
         assertTrue(opponent.natureKnown);
         assertTrue(CobblemonBattleDataProvider.randomFormatLabel("gen9RandomBattle"));
         assertFalse(CobblemonBattleDataProvider.randomFormatLabel("gen9singles", "standard"));
+        assertTrue(CobblemonBattleDataProvider.isRandomBattleQueueMessage(
+                "Tu as rejoins la file: Random Battle!"));
+        assertFalse(CobblemonBattleDataProvider.isRandomBattleQueueMessage(
+                "Tu as rejoins la file: Ranked Singles!"));
+    }
+
+    @Test
+    void generatedRandomTeamDoesNotRequireUniformEvs() {
+        assertTrue(CobblemonBattleDataProvider.isGeneratedRandomTeam(6, false));
+        assertFalse(CobblemonBattleDataProvider.isGeneratedRandomTeam(6, true));
+        assertFalse(CobblemonBattleDataProvider.isGeneratedRandomTeam(5, false));
     }
 
     @Test
