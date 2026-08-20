@@ -73,6 +73,30 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void randomBattleCopiesPlayerEvsAndForcesSeriousOpponentNature() {
+        PokemonSet player = new PokemonSet(species("randomally", "Random Ally", PokeType.FIRE,
+                PokeType.NONE, 80, 100, 80, 100, 80, 100, false));
+        player.evs.put(Stat.HP, 84);
+        player.evs.put(Stat.ATK, 84);
+        player.evs.put(Stat.SPE, 84);
+        PokemonSet opponent = new PokemonSet(species("randomenemy", "Random Enemy", PokeType.WATER,
+                PokeType.NONE, 80, 100, 80, 100, 80, 100, false));
+        opponent.evs.put(Stat.HP, 252);
+        opponent.nature = new NatureData("timid", "Timid", Stat.SPE, Stat.ATK);
+        opponent.statsKnown = false;
+        opponent.natureKnown = false;
+
+        CobblemonBattleDataProvider.applyRandomBattleOpponentRules(player, opponent);
+
+        assertEquals(player.evs, opponent.evs);
+        assertEquals("serious", opponent.nature.id());
+        assertTrue(opponent.statsKnown);
+        assertTrue(opponent.natureKnown);
+        assertTrue(CobblemonBattleDataProvider.randomFormatLabel("gen9RandomBattle"));
+        assertFalse(CobblemonBattleDataProvider.randomFormatLabel("gen9singles", "standard"));
+    }
+
+    @Test
     void localRegionalFormIsNotDowngradedByBaseBattleSpecies() {
         SpeciesData baseStats = species("ninetales", "Ninetales", PokeType.FIRE, PokeType.NONE,
                 73, 76, 75, 81, 100, 100, false);

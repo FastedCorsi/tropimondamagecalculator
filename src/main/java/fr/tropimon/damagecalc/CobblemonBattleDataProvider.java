@@ -55,6 +55,8 @@ final class CobblemonBattleDataProvider {
     private static Object loggedOpponentRosterBattle;
     private static int loggedOpponentRosterSize = -1;
     private static String loggedLocalHydration = "";
+    private static Object randomBattleIdentity;
+    private static Boolean randomBattleDetected;
 
     private CobblemonBattleDataProvider() {
     }
@@ -153,6 +155,12 @@ final class CobblemonBattleDataProvider {
                 }
             }
             logOpponentRosterSize(battle, "battle actor");
+            PokemonSet randomTemplate = randomBattlePlayerTemplate(battle, localActor, client);
+            if (randomTemplate != null) {
+                for (PokemonSet opponent : opponentRoster.values()) {
+                    applyRandomBattleOpponentRules(randomTemplate, opponent);
+                }
+            }
             return copyParty(new ArrayList<>(opponentRoster.values()));
         } catch (Throwable throwable) {
             debugParty("opponent party load failed: " + throwable.getClass().getSimpleName() + " " + throwable.getMessage());
@@ -569,6 +577,10 @@ final class CobblemonBattleDataProvider {
                     ? battlePokemonSet(localActives.get(1), true, client) : null;
             PokemonSet opponentPartner = opponentActives.size() > 1
                     ? battlePokemonSet(opponentActives.get(1), false, client) : null;
+            if (isRandomBattle(battle, localActor, client)) {
+                applyRandomBattleOpponentRules(player, opponent);
+                applyRandomBattleOpponentRules(player, opponentPartner);
+            }
             resetOpponentRosterIfBattleChanged(battle);
             rememberOpponent(opponent);
             rememberOpponent(opponentPartner);
@@ -719,6 +731,113 @@ final class CobblemonBattleDataProvider {
             set.moves.addAll(TropimonDex.defaultMoves(species));
         }
         return set;
+    }
+
+    private static PokemonSet randomBattlePlayerTemplate(Object battle, Object localActor, MinecraftClient client) {
+        if (!isRandomBattle(battle, localActor, client)) {
+            return null;
+        }
+        Object team = invokeOptional(localActor, "getPokemon");
+        if (team instanceof Iterable<?> iterable) {
+            for (Object live : iterable) {
+                PokemonSet converted = convertPartyPokemon(live);
+                if (converted != null) {
+                    return converted;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean isRandomBattle(Object battle, Object localActor, MinecraftClient client) {
+        if (battle == null || localActor == null || client == null) {
+            return false;
+        }
+        if (randomBattleIdentity != battle) {
+            randomBattleIdentity = battle;
+            randomBattleDetected = null;
+        }
+        if (randomBattleDetected != null) {
+            return randomBattleDetected;
+        }
+        Object format = invokeOptional(battle, "getBattleFormat");
+        Object battleType = invokeOptional(format, "getBattleType");
+        if (randomFormatLabel(text(invokeOptional(format, "getMod")),
+                text(invokeOptional(battleType, "getName")),
+                text(invokeOptional(format, "getRuleSet")))) {
+            randomBattleDetected = true;
+            TropimonDamageCalcClient.LOGGER.info("[CalcDBG] random battle detected source=format");
+            return true;
+        }
+        Object liveTeam = invokeOptional(localActor, "getPokemon");
+        if (!(liveTeam instanceof Iterable<?> iterable)) {
+            return false;
+        }
+        ArrayList<PokemonSet> converted = new ArrayList<>();
+        boolean persistentMemberFound = false;
+        for (Object live : iterable) {
+            PokemonSet pokemon = convertPartyPokemon(live);
+            if (pokemon == null) {
+                continue;
+            }
+            converted.add(pokemon);
+            Object uuid = invokeOptional(live, "getUuid");
+            if (uuid instanceof UUID pokemonUuid && persistentPartyContainsUuid(client, pokemonUuid)) {
+                persistentMemberFound = true;
+            }
+        }
+        if (converted.size() < 2) {
+            return false;
+        }
+        boolean uniformEvs = true;
+        Map<Stat, Integer> template = converted.getFirst().evs;
+        for (PokemonSet pokemon : converted) {
+            if (!template.equals(pokemon.evs)) {
+                uniformEvs = false;
+                break;
+            }
+        }
+        randomBattleDetected = !persistentMemberFound && uniformEvs;
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] random battle detected={} source=generated-team size={} uniformEvs={} persistentMember={}",
+                randomBattleDetected, converted.size(), uniformEvs, persistentMemberFound);
+        return randomBattleDetected;
+    }
+
+    static boolean randomFormatLabel(String... values) {
+        for (String value : values) {
+            if (TropimonDex.normalize(value).contains("random")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean persistentPartyContainsUuid(MinecraftClient client, UUID uuid) {
+        if (client == null || uuid == null) {
+            return false;
+        }
+        try {
+            Object storage = invokeOptional(cobblemonClient(), "getStorage");
+            for (Object party : partyCandidates(storage)) {
+                if (partyPokemonByUuid(party, uuid) != null) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    static void applyRandomBattleOpponentRules(PokemonSet player, PokemonSet opponent) {
+        if (player == null || opponent == null) {
+            return;
+        }
+        opponent.evs.clear();
+        opponent.evs.putAll(player.evs);
+        opponent.nature = TropimonDex.nature("serious");
+        opponent.statsKnown = true;
+        opponent.natureKnown = true;
     }
 
     private static PokemonSet convertPartyPokemonByUuid(MinecraftClient client, UUID uuid) {
@@ -1560,6 +1679,8 @@ final class CobblemonBattleDataProvider {
         capturedPreviewInformation = null;
         loggedPreviewScreen = null;
         loggedLocalHydration = "";
+        randomBattleIdentity = null;
+        randomBattleDetected = null;
         previewOpponentRosterExpiresAt = 0L;
         CobblemonBattleConditionTracker.resetForBattle(null);
     }
