@@ -23,6 +23,41 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DamageCalculatorTest {
     @Test
+    void randomBattleOwnedSetIsMatchedFromTheBattleActorByUuid() {
+        SpeciesData species = species("randommon", "Randommon", PokeType.DRAGON, PokeType.NONE,
+                90, 100, 90, 100, 90, 100, false);
+        PokemonSet first = new PokemonSet(species);
+        first.battleId = "first-random-uuid";
+        first.evs.put(Stat.ATK, 252);
+        first.ivs.put(Stat.SPE, 17);
+        first.setMove(0, move("dragonclaw", "Dragon Claw", PokeType.DRAGON,
+                DamageCategory.PHYSICAL, 80, false));
+        PokemonSet second = new PokemonSet(species);
+        second.battleId = "second-random-uuid";
+        second.evs.put(Stat.SPA, 252);
+
+        PokemonSet matched = CobblemonBattleDataProvider.matchingOwnedPokemon(
+                List.of(first, second), "first-random-uuid", species);
+
+        assertNotNull(matched);
+        assertEquals(252, matched.evs.get(Stat.ATK));
+        assertEquals(17, matched.ivs.get(Stat.SPE));
+        assertEquals("dragonclaw", matched.moveAt(0).id());
+        assertTrue(matched != first);
+    }
+
+    @Test
+    void randomBattleSpeciesFallbackRefusesAnAmbiguousMirrorTeam() {
+        SpeciesData species = species("ditto", "Ditto", PokeType.NORMAL, PokeType.NONE,
+                48, 48, 48, 48, 48, 48, false);
+        PokemonSet first = new PokemonSet(species);
+        PokemonSet second = new PokemonSet(species);
+
+        assertEquals(null, CobblemonBattleDataProvider.matchingOwnedPokemon(
+                List.of(first, second), "missing-uuid", species));
+    }
+
+    @Test
     void localRegionalFormIsNotDowngradedByBaseBattleSpecies() {
         SpeciesData baseStats = species("ninetales", "Ninetales", PokeType.FIRE, PokeType.NONE,
                 73, 76, 75, 81, 100, 100, false);

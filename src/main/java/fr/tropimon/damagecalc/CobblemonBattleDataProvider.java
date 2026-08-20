@@ -89,11 +89,21 @@ final class CobblemonBattleDataProvider {
         ArrayList<PokemonSet> output = new ArrayList<>();
         HashSet<UUID> seen = new HashSet<>();
         try {
-            Object storage = invokeOptional(cobblemonClient(), "getStorage");
-            for (Object party : partyCandidates(storage)) {
-                addPartyPokemon(output, seen, party);
+            Object battle = currentBattle(client);
+            Object actor = battle == null ? null : localBattleActor(battle, owner);
+            Object battleTeam = invokeOptional(actor, "getPokemon");
+            if (battleTeam != null) {
+                addPartyPokemon(output, seen, battleTeam);
             }
-            debugParty("party loaded count=" + output.size() + " storage=" + className(storage));
+            if (!output.isEmpty()) {
+                debugParty("party loaded count=" + output.size() + " source=battle actor");
+            } else {
+                Object storage = invokeOptional(cobblemonClient(), "getStorage");
+                for (Object party : partyCandidates(storage)) {
+                    addPartyPokemon(output, seen, party);
+                }
+                debugParty("party loaded count=" + output.size() + " source=storage " + className(storage));
+            }
         } catch (Throwable ignored) {
             debugParty("party load failed: " + ignored.getClass().getSimpleName() + " " + ignored.getMessage());
         }
@@ -815,7 +825,10 @@ final class CobblemonBattleDataProvider {
         if (localPlayer) {
             Object uuid = invokeOptional(battlePokemon, "getUuid");
             SpeciesData activeSpecies = speciesFromBattlePokemon(battlePokemon);
-            PokemonSet partySet = localPartyPokemon(client, uuid, activeSpecies);
+            PokemonSet partySet = localBattleActorPokemon(activeBattlePokemon, uuid, activeSpecies);
+            if (partySet == null) {
+                partySet = localPartyPokemon(client, uuid, activeSpecies);
+            }
             if (partySet != null) {
                 if (activeSpecies != null) {
                     partySet.species = preferSpecificForm(partySet.species, activeSpecies);
@@ -858,6 +871,60 @@ final class CobblemonBattleDataProvider {
         applyBattleRuntime(set, battlePokemon);
         CobblemonBattleConditionTracker.applyHistory(set, localPlayer);
         return set;
+    }
+
+    private static PokemonSet localBattleActorPokemon(Object activeBattlePokemon, Object battleUuid,
+                                                       SpeciesData activeSpecies) {
+        Object actor = invokeOptional(activeBattlePokemon, "getActor");
+        Object liveTeam = invokeOptional(actor, "getPokemon");
+        if (!(liveTeam instanceof Iterable<?> iterable)) {
+            return null;
+        }
+        ArrayList<PokemonSet> converted = new ArrayList<>();
+        for (Object live : iterable) {
+            PokemonSet pokemon = convertPartyPokemon(live);
+            if (pokemon != null) {
+                converted.add(pokemon);
+            }
+        }
+        PokemonSet matched = matchingOwnedPokemon(converted, battleUuid, activeSpecies);
+        if (matched != null) {
+            logLocalHydration(matched, "battle actor");
+        }
+        return matched;
+    }
+
+    static PokemonSet matchingOwnedPokemon(List<PokemonSet> team, Object battleUuid, SpeciesData activeSpecies) {
+        if (team == null || team.isEmpty()) {
+            return null;
+        }
+        String wantedId = battleUuid == null ? "" : battleUuid.toString();
+        if (!wantedId.isBlank()) {
+            for (PokemonSet candidate : team) {
+                if (wantedId.equals(candidate.battleId)) {
+                    return candidate.copy();
+                }
+            }
+        }
+        if (activeSpecies == null) {
+            return null;
+        }
+        ArrayList<PokemonSet> exactForms = new ArrayList<>();
+        for (PokemonSet candidate : team) {
+            if (candidate.species.id().equals(activeSpecies.id())) {
+                exactForms.add(candidate);
+            }
+        }
+        if (exactForms.size() == 1) {
+            return exactForms.getFirst().copy();
+        }
+        ArrayList<PokemonSet> baseSpecies = new ArrayList<>();
+        for (PokemonSet candidate : team) {
+            if (candidate.species.cobblemonSpeciesId().equals(activeSpecies.cobblemonSpeciesId())) {
+                baseSpecies.add(candidate);
+            }
+        }
+        return baseSpecies.size() == 1 ? baseSpecies.getFirst().copy() : null;
     }
 
     private static PokemonSet localPartyPokemon(MinecraftClient client, Object battleUuid, SpeciesData activeSpecies) {
