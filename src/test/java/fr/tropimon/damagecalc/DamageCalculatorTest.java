@@ -58,6 +58,21 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void inventoryTeamPreviewRecognizesBothSoloAndDoublesColumns() {
+        assertTrue(CobblemonBattleDataProvider.isPlayerPreviewSlot(0, 54, false));
+        assertTrue(CobblemonBattleDataProvider.isPlayerPreviewSlot(45, 54, false));
+        assertTrue(CobblemonBattleDataProvider.isOpponentPreviewSlot(8, 54, false));
+        assertTrue(CobblemonBattleDataProvider.isOpponentPreviewSlot(53, 54, false));
+        assertFalse(CobblemonBattleDataProvider.isPlayerPreviewSlot(54, 54, false));
+
+        assertTrue(CobblemonBattleDataProvider.isPlayerPreviewSlot(19, 54, true));
+        assertTrue(CobblemonBattleDataProvider.isPlayerPreviewSlot(38, 54, true));
+        assertTrue(CobblemonBattleDataProvider.isOpponentPreviewSlot(24, 54, true));
+        assertTrue(CobblemonBattleDataProvider.isOpponentPreviewSlot(43, 54, true));
+        assertFalse(CobblemonBattleDataProvider.isOpponentPreviewSlot(8, 54, true));
+    }
+
+    @Test
     void localRegionalFormIsNotDowngradedByBaseBattleSpecies() {
         SpeciesData baseStats = species("ninetales", "Ninetales", PokeType.FIRE, PokeType.NONE,
                 73, 76, 75, 81, 100, 100, false);
