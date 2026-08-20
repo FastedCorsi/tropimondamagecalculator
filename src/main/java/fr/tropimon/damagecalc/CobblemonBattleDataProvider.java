@@ -43,6 +43,7 @@ final class CobblemonBattleDataProvider {
     private static Object battleCache;
     private static Object opponentRosterBattle;
     private static final LinkedHashMap<String, PokemonSet> opponentRoster = new LinkedHashMap<>();
+    private static final LinkedHashMap<String, PokemonSet> previewPlayerRoster = new LinkedHashMap<>();
     private static final LinkedHashMap<String, PokemonSet> previewOpponentRoster = new LinkedHashMap<>();
     private static Object capturedPreviewScreen;
     private static Object capturedPreviewInformation;
@@ -83,13 +84,18 @@ final class CobblemonBattleDataProvider {
         }
         long now = System.currentTimeMillis();
         UUID owner = client.player.getUuid();
-        if (owner.equals(partyCacheOwner) && now < nextPartyRefresh) {
+        Object battle = null;
+        try {
+            battle = currentBattle(client);
+        } catch (Throwable ignored) {
+        }
+        boolean previewAvailable = previewIsCurrent() && !previewPlayerRoster.isEmpty();
+        if (battle == null && !previewAvailable && owner.equals(partyCacheOwner) && now < nextPartyRefresh) {
             return copyParty(partyCache);
         }
         ArrayList<PokemonSet> output = new ArrayList<>();
         HashSet<UUID> seen = new HashSet<>();
         try {
-            Object battle = currentBattle(client);
             Object actor = battle == null ? null : localBattleActor(battle, owner);
             Object battleTeam = invokeOptional(actor, "getPokemon");
             if (battleTeam != null) {
@@ -97,6 +103,9 @@ final class CobblemonBattleDataProvider {
             }
             if (!output.isEmpty()) {
                 debugParty("party loaded count=" + output.size() + " source=battle actor");
+            } else if (previewAvailable) {
+                output.addAll(previewPlayerParty());
+                debugParty("party loaded count=" + output.size() + " source=team preview");
             } else {
                 Object storage = invokeOptional(cobblemonClient(), "getStorage");
                 for (Object party : partyCandidates(storage)) {
@@ -160,34 +169,43 @@ final class CobblemonBattleDataProvider {
             return;
         }
         if (screen == capturedPreviewScreen && information == capturedPreviewInformation
-                && !previewOpponentRoster.isEmpty()) {
+                && (!previewPlayerRoster.isEmpty() || !previewOpponentRoster.isEmpty())) {
             previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
             return;
         }
-        Object party = invokeOptional(information, "getOpponentParty");
-        Object decoded = invokeOptional(party, "getDecodedPokemons");
-        if (!(decoded instanceof Iterable<?> iterable)) {
+        LinkedHashMap<String, PokemonSet> capturedPlayers = decodedPreviewRoster(
+                invokeOptional(information, "getPlayerParty"), false);
+        LinkedHashMap<String, PokemonSet> capturedOpponents = decodedPreviewRoster(
+                invokeOptional(information, "getOpponentParty"), true);
+        if (capturedPlayers.isEmpty() && capturedOpponents.isEmpty()) {
             return;
         }
+        capturedPreviewScreen = screen;
+        capturedPreviewInformation = information;
+        previewPlayerRoster.clear();
+        previewPlayerRoster.putAll(capturedPlayers);
+        previewOpponentRoster.clear();
+        previewOpponentRoster.putAll(capturedOpponents);
+        previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source={} players={} opponents={}",
+                className(screen), capturedPlayers.size(), capturedOpponents.size());
+    }
+
+    private static LinkedHashMap<String, PokemonSet> decodedPreviewRoster(Object party, boolean hidePrivateData) {
         LinkedHashMap<String, PokemonSet> captured = new LinkedHashMap<>();
+        Object decoded = invokeOptional(party, "getDecodedPokemons");
+        if (!(decoded instanceof Iterable<?> iterable)) {
+            return captured;
+        }
         for (Object live : iterable) {
             PokemonSet converted = convertPartyPokemon(live);
             if (converted == null) {
                 continue;
             }
-            PokemonSet preview = hideOpponentPrivateData(converted);
+            PokemonSet preview = hidePrivateData ? hideOpponentPrivateData(converted) : converted;
             captured.put(opponentKey(preview), preview);
         }
-        if (captured.isEmpty()) {
-            return;
-        }
-        capturedPreviewScreen = screen;
-        capturedPreviewInformation = information;
-        previewOpponentRoster.clear();
-        previewOpponentRoster.putAll(captured);
-        previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source={} opponents={}",
-                className(screen), captured.size());
+        return captured;
     }
 
     private static boolean captureHunterBoardTeamPreview(Object screen) {
@@ -195,11 +213,36 @@ final class CobblemonBattleDataProvider {
             return false;
         }
         Object detector = hunterBoardPvpDetector();
-        Object team = invokeOptional(detector, "getOpponentTeam");
-        if (!(team instanceof Iterable<?> iterable)) {
+        LinkedHashMap<String, PokemonSet> capturedPlayers = hunterBoardPreviewRoster(
+                invokeOptional(detector, "getPlayerTeam"));
+        LinkedHashMap<String, PokemonSet> capturedOpponents = hunterBoardPreviewRoster(
+                invokeOptional(detector, "getOpponentTeam"));
+        if (capturedPlayers.isEmpty() && capturedOpponents.isEmpty()) {
             return false;
         }
+        if (screen == capturedPreviewScreen && detector == capturedPreviewInformation
+                && previewPlayerRoster.keySet().equals(capturedPlayers.keySet())
+                && previewOpponentRoster.keySet().equals(capturedOpponents.keySet())) {
+            previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+            return true;
+        }
+        capturedPreviewScreen = screen;
+        capturedPreviewInformation = detector;
+        previewPlayerRoster.clear();
+        previewPlayerRoster.putAll(capturedPlayers);
+        previewOpponentRoster.clear();
+        previewOpponentRoster.putAll(capturedOpponents);
+        previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source=hunterboard players={} opponents={}",
+                capturedPlayers.size(), capturedOpponents.size());
+        return true;
+    }
+
+    private static LinkedHashMap<String, PokemonSet> hunterBoardPreviewRoster(Object team) {
         LinkedHashMap<String, PokemonSet> captured = new LinkedHashMap<>();
+        if (!(team instanceof Iterable<?> iterable)) {
+            return captured;
+        }
         for (Object entry : iterable) {
             String speciesId = text(invokeOptional(entry, "getSpeciesId"));
             List<String> aspects = stringList(invokeOptional(entry, "getAspects"));
@@ -213,22 +256,7 @@ final class CobblemonBattleDataProvider {
             PokemonSet preview = hideOpponentPrivateData(new PokemonSet(species));
             captured.put(opponentKey(preview), preview);
         }
-        if (captured.isEmpty()) {
-            return false;
-        }
-        if (screen == capturedPreviewScreen && detector == capturedPreviewInformation
-                && samePreviewRoster(captured)) {
-            previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-            return true;
-        }
-        capturedPreviewScreen = screen;
-        capturedPreviewInformation = detector;
-        previewOpponentRoster.clear();
-        previewOpponentRoster.putAll(captured);
-        previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source=hunterboard opponents={}",
-                captured.size());
-        return true;
+        return captured;
     }
 
     private static boolean looksLikeTeamPreviewScreen(Object screen) {
@@ -265,10 +293,6 @@ final class CobblemonBattleDataProvider {
         return hunterBoardPvpDetector;
     }
 
-    private static boolean samePreviewRoster(Map<String, PokemonSet> captured) {
-        return previewOpponentRoster.keySet().equals(captured.keySet());
-    }
-
     private static Object teamPreviewInformation(Object screen) {
         if (screen == null) {
             return null;
@@ -298,6 +322,14 @@ final class CobblemonBattleDataProvider {
             return List.of();
         }
         return copyParty(new ArrayList<>(previewOpponentRoster.values()));
+    }
+
+    private static List<PokemonSet> previewPlayerParty() {
+        if (!previewIsCurrent()) {
+            previewPlayerRoster.clear();
+            return List.of();
+        }
+        return copyParty(new ArrayList<>(previewPlayerRoster.values()));
     }
 
     static PokemonSet hideOpponentPrivateData(PokemonSet source) {
@@ -1487,6 +1519,7 @@ final class CobblemonBattleDataProvider {
         battleCacheTick = Long.MIN_VALUE;
         battleCache = null;
         clearOpponentRoster(null);
+        previewPlayerRoster.clear();
         previewOpponentRoster.clear();
         capturedPreviewScreen = null;
         capturedPreviewInformation = null;
