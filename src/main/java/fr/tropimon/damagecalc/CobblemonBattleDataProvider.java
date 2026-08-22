@@ -62,6 +62,11 @@ final class CobblemonBattleDataProvider {
     private static Boolean randomBattleDetected;
     private static long randomBattleQueueExpiresAt;
     private static final long RANDOM_BATTLE_QUEUE_TTL_MS = 900_000L;
+    private static final long BATTLE_END_GRACE_MS = 2_000L;
+    private static Object lifecycleBattle;
+    private static boolean lifecycleBattleWasRandom;
+    private static boolean battleEndSignaled;
+    private static long battleMissingSince;
 
     private CobblemonBattleDataProvider() {
     }
@@ -737,6 +742,75 @@ final class CobblemonBattleDataProvider {
         } catch (Throwable ignored) {
             return false;
         }
+    }
+
+    static void tickBattleLifecycle(MinecraftClient client) {
+        try {
+            Object current = currentBattle(client);
+            long now = System.currentTimeMillis();
+            if (current != null) {
+                if (current != lifecycleBattle) {
+                    lifecycleBattle = current;
+                    lifecycleBattleWasRandom = false;
+                    battleEndSignaled = false;
+                }
+                battleMissingSince = 0L;
+                if (!lifecycleBattleWasRandom && client != null && client.player != null) {
+                    Object actor = localBattleActor(current, client.player.getUuid());
+                    lifecycleBattleWasRandom = actor != null && isRandomBattle(current, actor, client);
+                }
+                return;
+            }
+            if (lifecycleBattle == null) {
+                battleMissingSince = 0L;
+                return;
+            }
+            if (battleMissingSince == 0L) {
+                battleMissingSince = now;
+            }
+            if (!battleEndSignaled && now - battleMissingSince < BATTLE_END_GRACE_MS) {
+                return;
+            }
+            finishBattleLifecycle();
+        } catch (Throwable throwable) {
+            debugParty("battle lifecycle sync failed: " + throwable.getClass().getSimpleName());
+        }
+    }
+
+    static void markBattleFinished() {
+        battleEndSignaled = true;
+    }
+
+    private static void finishBattleLifecycle() {
+        boolean resetCalculator = lifecycleBattleWasRandom;
+        lifecycleBattle = null;
+        lifecycleBattleWasRandom = false;
+        battleEndSignaled = false;
+        battleMissingSince = 0L;
+        partyCacheOwner = null;
+        partyCache = List.of();
+        nextPartyRefresh = 0L;
+        clearOpponentRoster(null);
+        previewPlayerRoster.clear();
+        previewOpponentRoster.clear();
+        previewOpponentFullRoster.clear();
+        capturedPreviewScreen = null;
+        capturedPreviewInformation = null;
+        randomBattleIdentity = null;
+        randomBattleDetected = null;
+        randomBattleQueueExpiresAt = 0L;
+        previewOpponentRosterExpiresAt = 0L;
+        previewOpponentFullRosterExpiresAt = 0L;
+        CobblemonBattleConditionTracker.resetForBattle(null);
+        if (resetCalculator) {
+            DamageCalcState.shared().resetAfterRandomBattle();
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.currentScreen instanceof DamageCalcScreen screen) {
+                screen.refreshBattleSnapshot();
+            }
+        }
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] battle session cleared random={}", resetCalculator);
     }
 
     static void synchronizeBattleTracker() {
@@ -1849,6 +1923,10 @@ final class CobblemonBattleDataProvider {
         randomBattleIdentity = null;
         randomBattleDetected = null;
         randomBattleQueueExpiresAt = 0L;
+        lifecycleBattle = null;
+        lifecycleBattleWasRandom = false;
+        battleEndSignaled = false;
+        battleMissingSince = 0L;
         previewOpponentRosterExpiresAt = 0L;
         previewOpponentFullRosterExpiresAt = 0L;
         exactRandomPreviewBattle = null;

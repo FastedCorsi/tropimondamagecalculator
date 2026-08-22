@@ -470,6 +470,37 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void cobblemonOutcomeMessagesAreRecognizedAsBattleEndSignals() {
+        assertTrue(CobblemonBattleConditionTracker.isBattleEndMessage("cobblemon.battle.win"));
+        assertTrue(CobblemonBattleConditionTracker.isBattleEndMessage("cobblemon.battle.lose"));
+        assertTrue(CobblemonBattleConditionTracker.isBattleEndMessage("cobblemon.battle.forfeit"));
+        assertTrue(CobblemonBattleConditionTracker.isBattleEndMessage("cobblemon.battle.flee"));
+        assertFalse(CobblemonBattleConditionTracker.isBattleEndMessage("cobblemon.battle.turn"));
+    }
+
+    @Test
+    void randomBattleCleanupRemovesThePreviousMatchFromTheCalculator() {
+        DamageCalcState state = new DamageCalcState();
+        state.attacker = new PokemonSet(species("randomally", "Random Ally", PokeType.FIRE,
+                PokeType.NONE, 80, 90, 70, 90, 70, 100, false));
+        state.defender = new PokemonSet(species("randomenemy", "Random Enemy", PokeType.WATER,
+                PokeType.NONE, 90, 80, 90, 80, 90, 70, false));
+        state.attacker.battleId = "old-random-ally";
+        state.defender.battleId = "old-random-enemy";
+        state.field.weather = Weather.RAIN;
+
+        state.resetAfterRandomBattle();
+
+        assertEquals("abomasnow", state.attacker.species.id());
+        assertEquals("abomasnow", state.defender.species.id());
+        assertEquals("", state.attacker.battleId);
+        assertEquals("", state.defender.battleId);
+        assertEquals(Weather.NONE, state.field.weather);
+        assertEquals("", state.attackerSearch);
+        assertEquals("", state.defenderSearch);
+    }
+
+    @Test
     void observedCobblemonMaxHpOverridesAnImperfectLocalRecalculation() {
         PokemonSet pokemon = new PokemonSet(species("goodra", "Goodra", PokeType.DRAGON, PokeType.NONE,
                 90, 100, 70, 110, 150, 80, false));

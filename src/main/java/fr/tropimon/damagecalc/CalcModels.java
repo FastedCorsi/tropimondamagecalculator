@@ -516,6 +516,25 @@ final class DamageCalcState {
         return SHARED;
     }
 
+    void resetAfterRandomBattle() {
+        attacker = new PokemonSet(TropimonDex.species("abomasnow"));
+        defender = new PokemonSet(TropimonDex.species("abomasnow"));
+        attacker.ability = TropimonDex.defaultAbility(attacker.species);
+        defender.ability = TropimonDex.defaultAbility(defender.species);
+        field = new FieldState();
+        attackerSearch = "";
+        defenderSearch = "";
+        attackerItemSearch = "";
+        defenderItemSearch = "";
+        attackerAbilitySearch = "";
+        defenderAbilitySearch = "";
+        attackerNatureSearch = "";
+        defenderNatureSearch = "";
+        attackerPartnerAbilitySearch = "";
+        defenderPartnerAbilitySearch = "";
+        damageCacheFingerprint = Long.MIN_VALUE;
+    }
+
     PokemonSet selectCatalogSpecies(SpeciesData species, boolean attackerSide) {
         PokemonSet pokemon = new PokemonSet(species);
         String megaStone = TropimonDex.megaStoneForSpecies(species);

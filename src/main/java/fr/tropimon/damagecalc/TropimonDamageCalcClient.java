@@ -89,6 +89,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             TropimonRandomBattleSets.pollForUpdates();
+            CobblemonBattleDataProvider.tickBattleLifecycle(client);
             CobblemonBattleDataProvider.captureVisibleTeamPreview(client.currentScreen);
 
             if (!loadMessageSent && client.player != null) {

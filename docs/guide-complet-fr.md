@@ -93,6 +93,8 @@ L'équipe Random Battle du joueur est récupérée depuis l'acteur de combat Cob
 
 Le Team Preview Random Battle est capturé aussi bien depuis les informations de bataille structurées que depuis l'inventaire de sélection du lead. Les Pokémon sont dédupliqués, les formes sont réconciliées avec la forme réellement envoyée et les révélations sont conservées pendant le combat.
 
+À la fin du match, les messages Cobblemon de victoire, défaite, abandon ou fuite déclenchent le nettoyage de la session dès que la bataille est fermée. Une temporisation de secours couvre les fins sans message exploitable. Les Pokémon, sets déduits, rosters et conditions de la Random Battle précédente ne restent donc pas dans le calculateur.
+
 ## Synchronisation en combat
 
 Le calculateur suit les messages structurés et l'état de combat Cobblemon. Cette lecture ne dépend pas du texte anglais affiché dans le chat : elle continue donc de fonctionner lorsque le jeu est en français.

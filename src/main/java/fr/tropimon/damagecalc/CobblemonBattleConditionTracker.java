@@ -149,6 +149,10 @@ final class CobblemonBattleConditionTracker {
         if (key == null || !key.startsWith("cobblemon.battle.")) {
             return false;
         }
+        if (isBattleEndMessage(key)) {
+            CobblemonBattleDataProvider.markBattleFinished();
+            return true;
+        }
         if (isStatChangeMessage(key)) {
             boolean changed = recordStatChange(key, arguments);
             if (changed) refreshCurrentHistory();
@@ -186,6 +190,15 @@ final class CobblemonBattleConditionTracker {
             refreshCurrentHistory();
         }
         return changed;
+    }
+
+    static boolean isBattleEndMessage(String key) {
+        return Set.of(
+                "cobblemon.battle.win",
+                "cobblemon.battle.lose",
+                "cobblemon.battle.forfeit",
+                "cobblemon.battle.flee"
+        ).contains(key);
     }
 
     private static boolean isStatChangeMessage(String key) {

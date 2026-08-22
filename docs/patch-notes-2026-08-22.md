@@ -55,6 +55,8 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 - Le sélecteur manuel ne parcourt que les variantes encore compatibles avec les attaques, talents et objets déjà révélés.
 - Lorsque le preview n'expose pas le set exact, l'adversaire reçoit la même répartition d'EV que le Pokémon du joueur et une nature `Serious`, conformément aux règles configurées pour ce format.
 - Les informations privées non révélées restent inconnues en dehors de ces règles et des données communes aux variantes.
+- La fin du match est détectée depuis les messages Cobblemon de victoire, défaite, abandon ou fuite, avec une temporisation de secours lorsque l'objet de bataille disparaît.
+- Après une Random Battle terminée, le roster, les sets déduits, les Pokémon actifs et les conditions de terrain sont réinitialisés afin qu'ils ne restent pas dans le calculateur.
 
 ## Refonte de l'interface
 
