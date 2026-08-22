@@ -2,7 +2,7 @@
 
 ## Installation
 
-Placez le JAR `tropimon-damage-calc-0.3.12.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
+Placez le JAR `tropimon-damage-calc-0.3.13.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
 
 Les sets Random Battle sont d'abord lus depuis `tropimon-random-battle-sets.json` ou `tropimon.json` lorsqu'un de ces fichiers est installé par le jeu ou par un mod Tropimon. Le calculateur vérifie ces fichiers toutes les cinq secondes et les recharge automatiquement après une mise à jour. Si aucun fichier du jeu n'existe, il utilise la copie Tropimon incluse dans son JAR. Aucune API externe n'est appelée en jeu.
 

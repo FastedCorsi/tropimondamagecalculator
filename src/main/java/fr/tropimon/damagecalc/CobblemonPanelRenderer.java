@@ -14,14 +14,25 @@ final class CobblemonPanelRenderer {
     }
 
     static void draw(DrawContext context, int x, int y, int width, int height) {
+        draw(context, x, y, width, height, true);
+    }
+
+    static void drawBorder(DrawContext context, int x, int y, int width, int height) {
+        draw(context, x, y, width, height, false);
+    }
+
+    private static void draw(DrawContext context, int x, int y, int width, int height,
+                             boolean drawCenter) {
         if (width < BORDER * 2 || height < BORDER * 2) {
             return;
         }
         int innerWidth = width - BORDER * 2;
         int innerHeight = height - BORDER * 2;
 
-        drawPart(context, x + BORDER, y + BORDER, innerWidth, innerHeight,
-                BORDER, BORDER, CENTER, CENTER);
+        if (drawCenter) {
+            drawPart(context, x + BORDER, y + BORDER, innerWidth, innerHeight,
+                    BORDER, BORDER, CENTER, CENTER);
+        }
         drawPart(context, x + BORDER, y, innerWidth, BORDER,
                 BORDER, 0, CENTER, BORDER);
         drawPart(context, x + BORDER, y + height - BORDER, innerWidth, BORDER,

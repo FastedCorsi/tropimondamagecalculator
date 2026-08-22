@@ -532,7 +532,7 @@ public final class DamageCalcScreen extends Screen {
 
         int moveY = moveY(editorY);
         int panelBottom = compactLayout() ? height - 2 : Math.min(height - 8, moveY + MOVE_ROW * 4 + 8);
-        CobblemonPanelRenderer.draw(context, panelX, panelY, panelW, panelBottom - panelY);
+        TropimonFrameRenderer.draw(context, panelX, panelY, panelW, panelBottom - panelY);
 
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 12, 0xFFFFFF);
         int profileY = editorY;
