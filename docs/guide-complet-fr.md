@@ -73,6 +73,26 @@ Pendant un Team Preview compatible, le mod enregistre les espèces et formes mon
 
 Pour l'adversaire, seules les informations légitimement visibles sont enregistrées. Un objet, talent ou mouvement inconnu reste inconnu jusqu'à sa révélation ou sa saisie manuelle.
 
+## Random Battle Tropimon
+
+Le calculateur active sa logique Random Battle uniquement lorsqu'il reconnaît ce format. La détection combine le message de file d'attente, le format déclaré par le combat et la présence d'une équipe générée de six Pokémon qui ne correspond pas à l'équipe persistante du joueur. Les autres combats ne reçoivent aucune déduction de set Random Battle.
+
+Les sets sont lus en priorité depuis les fichiers Tropimon présents dans l'installation du jeu, notamment `tropimon-random-battle-sets.json`, `tropimon-random-battle-sets` ou `tropimon.json`. Le fichier préféré est contrôlé toutes les cinq secondes et rechargé lorsqu'il change. Si aucun fichier local compatible n'est disponible, la version actuelle peut utiliser le snapshot Tropimon inclus dans le JAR.
+
+Pour chaque Pokémon Random Battle, le mod compare les variantes disponibles avec les informations déjà connues :
+
+- niveau réel du Pokémon ;
+- objet et talent lorsqu'ils sont visibles ;
+- type Tera connu ;
+- attaques déjà révélées ;
+- espèce et forme exactes.
+
+Les variantes incompatibles sont retirées progressivement. Une information n'est préremplie automatiquement que si elle est commune à toutes les variantes restantes. Quand une seule variante reste, le set complet peut être appliqué. Si plusieurs variantes restent possibles, un bouton `Set N` apparaît : `Set 1` est chargé dès l'ouverture et chaque clic passe au set suivant. Le survol affiche le contenu de la variante. Les sets strictement identiques sont fusionnés pendant le chargement.
+
+L'équipe Random Battle du joueur est récupérée depuis l'acteur de combat Cobblemon afin de conserver ses formes, niveaux, EV, IV, nature, talent, objet et attaques. Pour un adversaire dont le set exact n'est pas exposé par le Team Preview, le calculateur applique uniquement les règles spécifiques configurées pour ce format : même répartition d'EV que le Pokémon du joueur et nature `Serious`, puis affine objet, talent, Tera et attaques avec les variantes Tropimon et les révélations du combat.
+
+Le Team Preview Random Battle est capturé aussi bien depuis les informations de bataille structurées que depuis l'inventaire de sélection du lead. Les Pokémon sont dédupliqués, les formes sont réconciliées avec la forme réellement envoyée et les révélations sont conservées pendant le combat.
+
 ## Synchronisation en combat
 
 Le calculateur suit les messages structurés et l'état de combat Cobblemon. Cette lecture ne dépend pas du texte anglais affiché dans le chat : elle continue donc de fonctionner lorsque le jeu est en français.
@@ -110,6 +130,8 @@ Un bouton `Z` actif reste vert et remplace le nom affiché par celui du Z-Move c
 
 ## Interface
 
+- **Cadre Tropimon** : panneau Cobblemon agrandi en neuf zones, avec fond sombre semi-transparent et contenu contenu dans les deux colonnes.
+- **Portraits** : modèles Cobblemon animés, placés dans de petits cadres cyan avec une marge régulière.
 - **Pokémon, objet, talent et nature** : champs recherchables appliqués au clic.
 - **X** : retire rapidement la valeur sélectionnée.
 - **Niveau** : choix rapide des niveaux courants, dont 5, 50 et 100.
@@ -122,8 +144,11 @@ Un bouton `Z` actif reste vert et remplace le nom affiché par celui du Z-Move c
 - **Météo / Terrain / Crit** : conditions globales du calcul.
 - **X d'une attaque** : vide uniquement cet emplacement d'attaque.
 - **Pourcentage de dégâts** : fourchette des dégâts par rapport aux PV maximaux de la cible.
+- **Croix supérieure droite** : ferme l'écran, devient rouge au survol et restaure l'interface Cobblemon si un combat est toujours actif.
 
 Les couleurs des statistiques donnent un repère visuel allant du rouge pour une valeur faible au vert pour une valeur élevée. Elles restent indicatives et suivent la statistique finale au niveau sélectionné.
+
+Les en-têtes `Stat`, `EV`, `IV`, `Boost` et `Total` sont centrés sur leurs colonnes. Les boutons de presets EV sont volontairement compacts afin de laisser davantage de place aux valeurs et aux attaques.
 
 ## Ce qui reste manuel
 

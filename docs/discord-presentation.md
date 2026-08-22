@@ -40,6 +40,44 @@ https://raw.githubusercontent.com/FastedCorsi/tropimondamagecalculator/main/docs
 
 Tropimon Damage Calculator est un projet indépendant et non officiel.
 
+## Patch note du 22 août 2026 - prêt à publier
+
+**Tropimon Damage Calculator - Random Battle + UI Rework**
+
+La mise à jour du jour améliore fortement l'intégration aux combats Tropimon.
+
+**Random Battle**
+
+- détection automatique du format Random Battle ;
+- récupération de l'équipe générée du joueur avec formes, niveaux, EV, IV, nature, talent, objet et attaques ;
+- lecture et rechargement automatique des sets Tropimon installés dans les fichiers du jeu ;
+- capture du Team Preview, y compris l'écran d'inventaire de sélection du lead ;
+- déduplication des équipes et correction des formes régionales ;
+- déduction progressive du set adverse avec le niveau, l'objet, le talent, le Tera et les attaques révélées ;
+- bouton `Set N` lorsqu'il reste plusieurs variantes, avec `Set 1` chargé immédiatement et détail du set au survol ;
+- fusion des sets identiques et prise en charge de toutes les variantes disponibles.
+
+**Interface**
+
+- nouveau grand cadre inspiré des interfaces Cobblemon/Tropimon ;
+- fond sombre semi-transparent et fenêtre plus compacte ;
+- modèles Pokémon animés dans des cadres cyan ;
+- icônes de type et d'objet provenant des ressources Cobblemon ;
+- colonnes de statistiques centrées et presets EV plus petits ;
+- listes recherchables appliquées immédiatement au clic ;
+- petite croix de fermeture en haut à droite, rouge au survol ;
+- retour automatique à l'interface de combat après fermeture du calculateur.
+
+**Corrections importantes**
+
+- les attaques adverses révélées sont conservées et utilisées pour identifier leur set ;
+- les Pokémon de l'équipe gardent leurs vraies données privées côté client ;
+- sélectionner ensuite un Pokémon générique réinitialise correctement EV, IV, niveau, nature, objet, talent et attaques ;
+- les équipes et adversaires ne sont plus dupliqués après plusieurs combats ;
+- les formes du preview sont réconciliées avec la forme réellement envoyée.
+
+Ouverture avec le bouton `Calc` en combat, `/tropicalc` ou la touche configurable (`B` par défaut sur une nouvelle installation).
+
 ## Version courte
 
 **Tropimon Damage Calculator 0.3.22** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon et propose un sélecteur `Set N` lorsque plusieurs variantes restent possibles. Le premier set est chargé immédiatement et les doublons sont fusionnés. L'interface compacte utilise les modèles animés, les icônes de type et d'objet ainsi que le grand cadre du navigateur Tropimon avec un fond sombre semi-transparent et des cadres cyan autour des portraits. Les modèles disposent d'une marge régulière et l'ancien indicateur `?` superposé aux portraits a été retiré. La fermeture utilise maintenant une petite croix ancrée dans l'angle supérieur droit, mise en évidence en rouge au survol. Les colonnes de statistiques sont centrées, les presets EV sont plus compacts et les titres d'attaques mieux espacés. La sélection d'un Pokémon générique réinitialise correctement son set au lieu de conserver les EV, IV et réglages d'un Pokémon de l'équipe. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.

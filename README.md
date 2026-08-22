@@ -39,6 +39,7 @@ Minecraft keeps an existing user binding when the mod is updated, even if the de
 - [Guide complet en français](docs/guide-complet-fr.md)
 - [Guide d'utilisation rapide](docs/damage-calculator-usage.md)
 - [Présentation Discord](docs/discord-presentation.md)
+- [Patch notes du 22 août 2026](docs/patch-notes-2026-08-22.md)
 - [Documentation technique](docs/damage-calculator-tech.md)
 
 ## Requirements
