@@ -532,8 +532,7 @@ public final class DamageCalcScreen extends Screen {
 
         int moveY = moveY(editorY);
         int panelBottom = compactLayout() ? height - 2 : Math.min(height - 8, moveY + MOVE_ROW * 4 + 8);
-        context.fill(panelX, panelY, panelX + panelW, panelBottom, 0xE010171C);
-        context.drawBorder(panelX, panelY, panelW, panelBottom - panelY, 0xFF48D597);
+        CobblemonPanelRenderer.draw(context, panelX, panelY, panelW, panelBottom - panelY);
 
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 12, 0xFFFFFF);
         int profileY = editorY;
@@ -631,8 +630,7 @@ public final class DamageCalcScreen extends Screen {
 
     private void drawPokemonTexture(DrawContext context, PokemonSet pokemon, int x, int y,
                                     float frameDelta, String animationSlot) {
-        context.fill(x, y, x + 56, y + 56, 0xD014171C);
-        context.drawBorder(x, y, 56, 56, 0xFF606060);
+        CobblemonPanelRenderer.draw(context, x, y, 56, 56);
         if (!CobblemonPokemonProfileRenderer.drawAnimated(
                 context, pokemon.species, x + 2, y + 2, 52, frameDelta, animationSlot)) {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
