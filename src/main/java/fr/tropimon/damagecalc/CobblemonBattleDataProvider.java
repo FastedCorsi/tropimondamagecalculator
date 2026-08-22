@@ -157,8 +157,8 @@ final class CobblemonBattleDataProvider {
             if (randomTemplate != null) {
                 attachFullRandomPreviewRoster(battle);
                 for (PokemonSet opponent : opponentRoster.values()) {
+                    applyRandomBattleOpponentRules(randomTemplate, opponent);
                     if (!hasExactRandomOpponent(opponent)) {
-                        applyRandomBattleOpponentRules(randomTemplate, opponent);
                         TropimonRandomBattleSets.applyInference(opponent);
                     }
                 }
@@ -699,12 +699,12 @@ final class CobblemonBattleDataProvider {
                 applyRandomBattlePlayerEvDefaults(playerPartner);
                 TropimonRandomBattleSets.applyInference(player);
                 TropimonRandomBattleSets.applyInference(playerPartner);
+                applyRandomBattleOpponentRules(player, opponent);
                 if (!hasExactRandomOpponent(opponent)) {
-                    applyRandomBattleOpponentRules(player, opponent);
                     TropimonRandomBattleSets.applyInference(opponent);
                 }
+                applyRandomBattleOpponentRules(player, opponentPartner);
                 if (!hasExactRandomOpponent(opponentPartner)) {
-                    applyRandomBattleOpponentRules(player, opponentPartner);
                     TropimonRandomBattleSets.applyInference(opponentPartner);
                 }
             }

@@ -21,6 +21,7 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 - Réconciliation entre la forme du preview et la forme réellement envoyée, par exemple les formes régionales.
 - Préremplissage complet des Pokémon Random Battle du joueur : forme, niveau, EV, IV, nature, talent, objet et attaques disponibles côté client.
 - Restauration du fallback de `85 EV` dans les six statistiques lorsque Cobblemon ne fournit encore aucun EV au début du combat, sans écraser une répartition live disponible.
+- Application de cette répartition à l'adversaire même lorsqu'il provient d'un Team Preview Random Battle déjà résolu.
 
 ### Sets Tropimon
 

@@ -128,13 +128,19 @@ final class DamageCalculatorTest {
     void randomBattleUsesEightyFiveEvsWhenLiveValuesAreMissing() {
         PokemonSet pokemon = new PokemonSet(species("randomdefault", "Random Default", PokeType.NORMAL,
                 PokeType.NONE, 80, 80, 80, 80, 80, 80, false));
+        PokemonSet opponent = new PokemonSet(species("randomtarget", "Random Target", PokeType.WATER,
+                PokeType.NONE, 80, 80, 80, 80, 80, 80, false));
 
         CobblemonBattleDataProvider.applyRandomBattlePlayerEvDefaults(pokemon);
+        CobblemonBattleDataProvider.applyRandomBattleOpponentRules(pokemon, opponent);
 
         for (Stat stat : Stat.values()) {
             assertEquals(85, pokemon.evs.get(stat));
+            assertEquals(85, opponent.evs.get(stat));
         }
         assertTrue(pokemon.statsKnown);
+        assertTrue(opponent.statsKnown);
+        assertEquals("serious", opponent.nature.id());
     }
 
     @Test
