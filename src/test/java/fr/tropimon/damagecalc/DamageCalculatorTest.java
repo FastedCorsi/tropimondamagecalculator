@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.imageio.ImageIO;
 import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
@@ -176,6 +177,23 @@ final class DamageCalculatorTest {
         assertTrue(unresolved.itemKnown);
         assertEquals(List.of("swordsdance", "playrough", "suckerpunch", "stoneedge"),
                 TropimonRandomBattleSets.matchingSets(unresolved).getFirst().moveIds());
+    }
+
+    @Test
+    void bundledTropimonRandomBattleSnapshotContainsExactSets() throws Exception {
+        var stream = DamageCalculatorTest.class.getResourceAsStream(
+                "/assets/tropimon_damage_calc/data/tropimon-random-battle-sets.json");
+        assertNotNull(stream);
+        try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            TropimonRandomBattleSets.replaceFromReaderForTest(reader);
+        }
+
+        assertTrue(TropimonRandomBattleSets.speciesCount() > 400);
+        List<TropimonRandomBattleSets.RandomBattleSet> absol = TropimonRandomBattleSets.setsFor("absol");
+        assertEquals(2, absol.size());
+        assertTrue(absol.stream().anyMatch(set -> set.level() == 82
+                && set.itemId().equals("leftovers")
+                && set.moveIds().equals(List.of("swordsdance", "playrough", "suckerpunch", "stoneedge"))));
     }
 
     @Test

@@ -6,7 +6,10 @@ import com.google.gson.JsonParser;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -21,15 +24,20 @@ import java.util.stream.Stream;
 
 /** Tropimon Random Battle sets discovered in the installed game files. */
 final class TropimonRandomBattleSets {
+    private static final String BUNDLED_RESOURCE =
+            "/assets/tropimon_damage_calc/data/tropimon-random-battle-sets.json";
     private static final Set<String> FILE_NAMES = Set.of(
             "tropimon.json",
-            "tropimon-random-battle-sets.json"
+            "tropimon-random-battle-sets.json",
+            "tropimon-random-battle-sets"
     );
-    private static final long REFRESH_INTERVAL_MS = 30_000L;
+    private static final long REFRESH_INTERVAL_MS = 5_000L;
     private static final Map<String, List<RandomBattleSet>> SETS = new LinkedHashMap<>();
     private static boolean loaded;
     private static Path sourcePath;
     private static long sourceModified = Long.MIN_VALUE;
+    private static long sourceSize = Long.MIN_VALUE;
+    private static boolean bundledSource;
     private static long nextRefreshCheck;
 
     private TropimonRandomBattleSets() {
@@ -43,6 +51,8 @@ final class TropimonRandomBattleSets {
         SETS.clear();
         sourcePath = null;
         sourceModified = Long.MIN_VALUE;
+        sourceSize = Long.MIN_VALUE;
+        bundledSource = false;
         nextRefreshCheck = System.currentTimeMillis() + REFRESH_INTERVAL_MS;
         for (Path candidate : localCandidates()) {
             try (Reader reader = Files.newBufferedReader(candidate)) {
@@ -53,6 +63,7 @@ final class TropimonRandomBattleSets {
                 SETS.putAll(parsed);
                 sourcePath = candidate;
                 sourceModified = lastModified(candidate);
+                sourceSize = fileSize(candidate);
                 int setCount = SETS.values().stream().mapToInt(List::size).sum();
                 TropimonDamageCalcClient.LOGGER.info(
                         "Loaded Tropimon Random Battle sets from game files: {} Pokemon, {} sets, source={}",
@@ -62,13 +73,18 @@ final class TropimonRandomBattleSets {
                 TropimonDamageCalcClient.LOGGER.debug("Ignored invalid Random Battle set file: {}", candidate, exception);
             }
         }
-        TropimonDamageCalcClient.LOGGER.warn(
-                "No local Tropimon Random Battle set file found; waiting for a game update");
+        if (!loadBundledSnapshot()) {
+            TropimonDamageCalcClient.LOGGER.warn("No Tropimon Random Battle set data is available");
+        }
     }
 
     static synchronized void reload() {
         loaded = false;
         load();
+    }
+
+    static void pollForUpdates() {
+        refreshIfChanged();
     }
 
     static List<RandomBattleSet> setsFor(String speciesId) {
@@ -190,7 +206,10 @@ final class TropimonRandomBattleSets {
 
     static String sourceDescription() {
         refreshIfChanged();
-        return sourcePath == null ? "None" : sourcePath.toString();
+        if (sourcePath != null) {
+            return sourcePath.toString();
+        }
+        return bundledSource ? "Bundled Tropimon snapshot" : "None";
     }
 
     static synchronized void replaceFromReaderForTest(Reader reader) {
@@ -199,6 +218,8 @@ final class TropimonRandomBattleSets {
         loaded = true;
         sourcePath = null;
         sourceModified = Long.MIN_VALUE;
+        sourceSize = Long.MIN_VALUE;
+        bundledSource = false;
         nextRefreshCheck = Long.MAX_VALUE;
     }
 
@@ -209,9 +230,41 @@ final class TropimonRandomBattleSets {
             return;
         }
         nextRefreshCheck = now + REFRESH_INTERVAL_MS;
-        if (sourcePath == null || lastModified(sourcePath) != sourceModified) {
+        List<Path> candidates = localCandidates();
+        Path preferred = candidates.isEmpty() ? null : candidates.getFirst();
+        boolean localAppeared = sourcePath == null && preferred != null;
+        boolean localDisappeared = sourcePath != null && preferred == null;
+        boolean preferredChanged = sourcePath != null && preferred != null && !sourcePath.equals(preferred);
+        boolean contentChanged = sourcePath != null && preferred != null
+                && (lastModified(sourcePath) != sourceModified || fileSize(sourcePath) != sourceSize);
+        if (localAppeared || localDisappeared || preferredChanged || contentChanged) {
             loaded = false;
             load();
+        }
+    }
+
+    private static boolean loadBundledSnapshot() {
+        try (InputStream stream = TropimonRandomBattleSets.class.getResourceAsStream(BUNDLED_RESOURCE)) {
+            if (stream == null) {
+                return false;
+            }
+            try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+                Map<String, List<RandomBattleSet>> parsed = parseDocument(reader);
+                if (parsed.isEmpty()) {
+                    return false;
+                }
+                SETS.putAll(parsed);
+                bundledSource = true;
+                int setCount = SETS.values().stream().mapToInt(List::size).sum();
+                TropimonDamageCalcClient.LOGGER.info(
+                        "Loaded bundled Tropimon Random Battle snapshot: {} Pokemon, {} sets",
+                        SETS.size(), setCount);
+                return true;
+            }
+        } catch (Exception exception) {
+            TropimonDamageCalcClient.LOGGER.error(
+                    "Could not load bundled Tropimon Random Battle snapshot", exception);
+            return false;
         }
     }
 
@@ -219,16 +272,19 @@ final class TropimonRandomBattleSets {
         HashSet<Path> found = new HashSet<>();
         try {
             Path gameDir = FabricLoader.getInstance().getGameDir();
-            addCandidate(found, gameDir.resolve("tropimon.json"));
-            addCandidate(found, gameDir.resolve("showdown/data/tropimon.json"));
-            addCandidate(found, gameDir.resolve("config/tropimon.json"));
-            addCandidate(found, gameDir.resolve("data/tropimon.json"));
+            for (String fileName : FILE_NAMES) {
+                addCandidate(found, gameDir.resolve(fileName));
+                addCandidate(found, gameDir.resolve("showdown/data").resolve(fileName));
+                addCandidate(found, gameDir.resolve("config").resolve(fileName));
+                addCandidate(found, gameDir.resolve("data").resolve(fileName));
+            }
             scan(found, gameDir.resolve("showdown"), 5);
             scan(found, gameDir.resolve("config"), 4);
             scan(found, gameDir.resolve("data"), 4);
             scan(found, gameDir.resolve("cobblemon"), 4);
             for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
-                if (!TropimonDex.normalize(mod.getMetadata().getId()).contains("tropi")) {
+                String modId = TropimonDex.normalize(mod.getMetadata().getId());
+                if (!modId.contains("tropi") || modId.equals(TropimonDex.normalize(TropimonDamageCalcClient.MOD_ID))) {
                     continue;
                 }
                 for (Path root : mod.getRootPaths()) {
@@ -264,6 +320,14 @@ final class TropimonRandomBattleSets {
     private static long lastModified(Path path) {
         try {
             return Files.getLastModifiedTime(path).toMillis();
+        } catch (Exception ignored) {
+            return Long.MIN_VALUE;
+        }
+    }
+
+    private static long fileSize(Path path) {
+        try {
+            return Files.size(path);
         } catch (Exception ignored) {
             return Long.MIN_VALUE;
         }

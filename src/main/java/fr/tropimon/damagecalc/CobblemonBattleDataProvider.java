@@ -587,6 +587,14 @@ final class CobblemonBattleDataProvider {
     static void rememberOpponentRevelation(PokemonSet pokemon) {
         if (opponentRosterBattle != null) {
             rememberOpponent(pokemon);
+            if (Boolean.TRUE.equals(randomBattleDetected)) {
+                PokemonSet resolved = knownOpponent(pokemon);
+                int candidates = TropimonRandomBattleSets.matchingSets(resolved).size();
+                TropimonDamageCalcClient.LOGGER.info(
+                        "[CalcDBG] random opponent inference pokemon={} candidates={} item={} ability={} moves={}",
+                        resolved.species.name(), candidates, resolved.item, resolved.ability,
+                        resolved.moves.stream().filter(java.util.Objects::nonNull).map(MoveData::name).toList());
+            }
         }
     }
 
