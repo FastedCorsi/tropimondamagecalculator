@@ -134,7 +134,8 @@ final class DamageCalculatorTest {
                 {
                   "absol": {
                     "82,leftovers,justified,swordsdance,playrough,suckerpunch,stoneedge,normal": 250,
-                    "82,lifeorb,justified,knockoff,playrough,suckerpunch,stoneedge,normal": 250
+                    "82,lifeorb,justified,knockoff,playrough,suckerpunch,stoneedge,normal": 250,
+                    "82, LIFEORB , JUSTIFIED ,stoneedge,suckerpunch,playrough,knockoff,NORMAL": 100
                   },
                   "ditto": {
                     "85,choicescarf,imposter,transform,normal": 250
@@ -145,6 +146,7 @@ final class DamageCalculatorTest {
 
         assertEquals(2, TropimonRandomBattleSets.speciesCount());
         assertEquals(2, absol.size());
+        assertEquals(350, absol.get(1).weight());
         assertEquals(82, TropimonRandomBattleSets.suggestedLevel(
                 species("absol", "Absol", PokeType.DARK, PokeType.NONE,
                         65, 130, 60, 75, 60, 75, false), 100));

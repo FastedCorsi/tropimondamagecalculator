@@ -51,8 +51,8 @@ public final class DamageCalcScreen extends Screen {
     private int verticalScroll;
     private String attackerRandomSetSpecies = "";
     private String defenderRandomSetSpecies = "";
-    private int attackerNextRandomSet = -1;
-    private int defenderNextRandomSet = -1;
+    private int attackerRandomSetIndex = -1;
+    private int defenderRandomSetIndex = -1;
 
     public DamageCalcScreen(DamageCalcState state) {
         super(Text.translatable("screen.tropimon_damage_calc.title"));
@@ -171,15 +171,15 @@ public final class DamageCalcScreen extends Screen {
 
         String pokemonSearch = attacker ? state.attackerSearch : state.defenderSearch;
         int selectorX = x + 72;
-        addSearchField(pokemonKind, selectorX, y, 154,
+        addSearchField(pokemonKind, selectorX, y, 204,
                 localizedSelectionValue(pokemonSearch, pokemon.species.name(), speciesDisplayName(pokemon.species)),
                 tr("screen.tropimon_damage_calc.search.pokemon"),
                 value -> {
                     if (attacker) state.attackerSearch = value;
                     else state.defenderSearch = value;
                 });
-        addRandomSetSelector(pokemon, x, y, attacker);
         addClearButton(x + PANEL - 22, y, pokemonKind);
+        boolean showRandomSet = prepareRandomSetSelector(pokemon, attacker);
 
         String itemSearch = attacker ? state.attackerItemSearch : state.defenderItemSearch;
         TextFieldWidget itemField = addSearchField(itemKind, selectorX, y + 22, 204,
@@ -212,17 +212,22 @@ public final class DamageCalcScreen extends Screen {
         addClearButton(x + 278, y + 44, natureKind);
 
         boolean doubles = state.field.doubles;
-        int levelWidth = doubles ? 64 : 97;
-        int statusX = x + levelWidth + CONTROL_GAP;
-        int statusWidth = doubles ? 64 : 97;
+        int levelWidth = showRandomSet ? (doubles ? 46 : 54) : (doubles ? 64 : 97);
+        int setWidth = showRandomSet ? (doubles ? 46 : 54) : 0;
+        int setX = x + levelWidth + CONTROL_GAP;
+        int statusX = showRandomSet ? setX + setWidth + CONTROL_GAP : setX;
+        int statusWidth = showRandomSet ? (doubles ? 46 : 90) : (doubles ? 64 : 97);
         int teraX = statusX + statusWidth + CONTROL_GAP;
-        int teraWidth = doubles ? 64 : PANEL - (teraX - x);
+        int teraWidth = doubles ? (showRandomSet ? 46 : 64) : PANEL - (teraX - x);
         addButton(x, y + 66, levelWidth, "Nv " + pokemon.level, button -> {
             pokemon.level = nextLevel(pokemon.level);
             pokemon.currentHp = -1;
             pokemon.observedMaxHp = -1;
             reopen();
         });
+        if (showRandomSet) {
+            addRandomSetSelector(pokemon, setX, y + 66, setWidth, attacker);
+        }
         addButton(statusX, y + 66, statusWidth, pokemon.status.label, button -> {
             pokemon.status = DamageCalcState.cycle(List.of(StatusCondition.values()), pokemon.status);
             reopen();
@@ -322,58 +327,77 @@ public final class DamageCalcScreen extends Screen {
         spdPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.spd")));
     }
 
-    private void addRandomSetSelector(PokemonSet pokemon, int x, int y, boolean attacker) {
+    private boolean prepareRandomSetSelector(PokemonSet pokemon, boolean attacker) {
         if (!CobblemonBattleDataProvider.randomBattleActive(MinecraftClient.getInstance())) {
             resetRandomSetSelector(attacker);
-            return;
+            return false;
         }
         List<TropimonRandomBattleSets.RandomBattleSet> sets = TropimonRandomBattleSets.setsFor(pokemon.species);
         if (sets.size() < 2) {
             resetRandomSetSelector(attacker);
-            return;
+            return false;
         }
         String speciesId = pokemon.species.id();
         if (!speciesId.equals(attacker ? attackerRandomSetSpecies : defenderRandomSetSpecies)) {
             if (attacker) {
                 attackerRandomSetSpecies = speciesId;
-                attackerNextRandomSet = -1;
+                attackerRandomSetIndex = -1;
             } else {
                 defenderRandomSetSpecies = speciesId;
-                defenderNextRandomSet = -1;
+                defenderRandomSetIndex = -1;
             }
         }
-        int storedIndex = attacker ? attackerNextRandomSet : defenderNextRandomSet;
+        int storedIndex = attacker ? attackerRandomSetIndex : defenderRandomSetIndex;
         int candidates = TropimonRandomBattleSets.matchingSets(pokemon).size();
         if (candidates == 1 && storedIndex < 0) {
-            return;
+            return false;
         }
-        int setIndex = storedIndex < 0 ? 0 : Math.floorMod(storedIndex, sets.size());
-        TropimonRandomBattleSets.RandomBattleSet set = sets.get(setIndex);
-        ButtonWidget button = addButton(x + 230, y, 46,
+        if (storedIndex < 0) {
+            TropimonRandomBattleSets.applySet(pokemon, sets.getFirst());
+            setRandomSetIndex(attacker, 0);
+            updateRandomSetSearchFields(pokemon, attacker);
+        }
+        return true;
+    }
+
+    private void addRandomSetSelector(PokemonSet pokemon, int x, int y, int width, boolean attacker) {
+        List<TropimonRandomBattleSets.RandomBattleSet> sets = TropimonRandomBattleSets.setsFor(pokemon.species);
+        int setIndex = Math.floorMod(attacker ? attackerRandomSetIndex : defenderRandomSetIndex, sets.size());
+        TropimonRandomBattleSets.RandomBattleSet activeSet = sets.get(setIndex);
+        ButtonWidget button = addButton(x, y, width,
                 tr("screen.tropimon_damage_calc.random_set", setIndex + 1), pressed -> {
-                    TropimonRandomBattleSets.applySet(pokemon, set);
-                    if (attacker) {
-                        attackerNextRandomSet = (setIndex + 1) % sets.size();
-                        state.attackerItemSearch = itemDisplayName(pokemon.item);
-                        state.attackerAbilitySearch = abilityDisplayName(pokemon.ability);
-                    } else {
-                        defenderNextRandomSet = (setIndex + 1) % sets.size();
-                        state.defenderItemSearch = itemDisplayName(pokemon.item);
-                        state.defenderAbilitySearch = abilityDisplayName(pokemon.ability);
-                    }
+                    int nextIndex = (setIndex + 1) % sets.size();
+                    TropimonRandomBattleSets.applySet(pokemon, sets.get(nextIndex));
+                    setRandomSetIndex(attacker, nextIndex);
+                    updateRandomSetSearchFields(pokemon, attacker);
                     state.selectedMoveIndex = 0;
                     reopen();
                 });
-        button.setTooltip(Tooltip.of(Text.literal(randomSetTooltip(set, setIndex, sets.size()))));
+        button.setTooltip(Tooltip.of(Text.literal(randomSetTooltip(activeSet, setIndex, sets.size()))));
+    }
+
+    private void setRandomSetIndex(boolean attacker, int index) {
+        if (attacker) attackerRandomSetIndex = index;
+        else defenderRandomSetIndex = index;
+    }
+
+    private void updateRandomSetSearchFields(PokemonSet pokemon, boolean attacker) {
+        if (attacker) {
+            state.attackerItemSearch = itemDisplayName(pokemon.item);
+            state.attackerAbilitySearch = abilityDisplayName(pokemon.ability);
+        } else {
+            state.defenderItemSearch = itemDisplayName(pokemon.item);
+            state.defenderAbilitySearch = abilityDisplayName(pokemon.ability);
+        }
     }
 
     private void resetRandomSetSelector(boolean attacker) {
         if (attacker) {
             attackerRandomSetSpecies = "";
-            attackerNextRandomSet = -1;
+            attackerRandomSetIndex = -1;
         } else {
             defenderRandomSetSpecies = "";
-            defenderNextRandomSet = -1;
+            defenderRandomSetIndex = -1;
         }
     }
 

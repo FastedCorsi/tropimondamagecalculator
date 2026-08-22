@@ -367,21 +367,38 @@ final class TropimonRandomBattleSets {
                 if (!speciesEntry.getValue().isJsonObject()) {
                     continue;
                 }
-                ArrayList<RandomBattleSet> speciesSets = new ArrayList<>();
+                LinkedHashMap<String, RandomBattleSet> speciesSets = new LinkedHashMap<>();
                 for (Map.Entry<String, JsonElement> setEntry : speciesEntry.getValue().getAsJsonObject().entrySet()) {
                     RandomBattleSet parsed = parse(setEntry.getKey(), setEntry.getValue());
                     if (parsed != null) {
-                        speciesSets.add(parsed);
+                        speciesSets.merge(setKey(parsed), parsed, TropimonRandomBattleSets::mergeDuplicateSets);
                     }
                 }
                 if (!speciesSets.isEmpty()) {
-                    output.put(TropimonDex.normalize(speciesEntry.getKey()), List.copyOf(speciesSets));
+                    output.put(TropimonDex.normalize(speciesEntry.getKey()), List.copyOf(speciesSets.values()));
                 }
             }
         } catch (RuntimeException ignored) {
             return Map.of();
         }
         return output;
+    }
+
+    private static String setKey(RandomBattleSet set) {
+        ArrayList<String> moves = new ArrayList<>();
+        for (String move : set.moveIds()) {
+            moves.add(TropimonDex.normalize(move));
+        }
+        moves.sort(String::compareTo);
+        return set.level() + "|" + TropimonDex.normalize(set.itemId()) + "|"
+                + TropimonDex.normalize(set.abilityId()) + "|" + String.join(",", moves) + "|"
+                + TropimonDex.normalize(set.teraTypeId());
+    }
+
+    private static RandomBattleSet mergeDuplicateSets(RandomBattleSet first, RandomBattleSet duplicate) {
+        long combinedWeight = (long) Math.max(1, first.weight()) + Math.max(1, duplicate.weight());
+        return new RandomBattleSet(first.level(), first.itemId(), first.abilityId(), first.moveIds(),
+                first.teraTypeId(), (int) Math.min(Integer.MAX_VALUE, combinedWeight));
     }
 
     private static List<RandomBattleSet> filter(List<RandomBattleSet> source,
