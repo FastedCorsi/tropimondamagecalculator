@@ -516,6 +516,20 @@ final class DamageCalcState {
         return SHARED;
     }
 
+    PokemonSet selectCatalogSpecies(SpeciesData species, boolean attackerSide) {
+        PokemonSet pokemon = new PokemonSet(species);
+        String megaStone = TropimonDex.megaStoneForSpecies(species);
+        if (megaStone != null) {
+            pokemon.item = megaStone;
+        }
+        if (attackerSide) {
+            attacker = pokemon;
+        } else {
+            defender = pokemon;
+        }
+        return pokemon;
+    }
+
     DamageResult calculateMove(boolean fromAttacker, int slot) {
         if (slot < 0 || slot >= 4) {
             return null;

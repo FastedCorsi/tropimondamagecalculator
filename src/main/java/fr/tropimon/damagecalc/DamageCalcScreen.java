@@ -620,14 +620,14 @@ public final class DamageCalcScreen extends Screen {
 
     private void drawPokemonTexture(DrawContext context, PokemonSet pokemon, int x, int y,
                                     String animationSlot) {
-        TropimonFrameRenderer.drawCompact(context, x, y, 56, 56);
+        TropimonFrameRenderer.drawCompact(context, x, y, 60, 60);
         if (!CobblemonPokemonProfileRenderer.drawAnimated(
-                context, pokemon.species, x + 4, y + 4, 48, animationSlot)) {
+                context, pokemon.species, x + 4, y + 4, 52, animationSlot)) {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
-                    x + 6, y + 24, 44, 0xFFB0B0B0);
+                    x + 6, y + 26, 48, 0xFFB0B0B0);
         }
         if (!pokemon.itemKnown || !pokemon.abilityKnown || !pokemon.natureKnown || !pokemon.statsKnown) {
-            drawTrimmed(context, "?", x + 44, y + 4, 8, 0xFFFFD166);
+            drawTrimmed(context, "?", x + 48, y + 4, 8, 0xFFFFD166);
         }
     }
 
@@ -1156,24 +1156,8 @@ public final class DamageCalcScreen extends Screen {
 
     private void selectSpecies(SpeciesData species, boolean attacker) {
         TropimonDamageCalcClient.debug("selectSpecies side=" + (attacker ? "attacker" : "defender") + " species=" + species.name());
-        PokemonSet pokemon = attacker ? state.attacker : state.defender;
-        String previousMegaStone = TropimonDex.megaStoneForSpecies(pokemon.species);
-        pokemon.clearBattleContext();
-        pokemon.species = species;
-        pokemon.ability = TropimonDex.defaultAbility(species);
-        pokemon.itemKnown = true;
-        pokemon.abilityKnown = true;
-        pokemon.natureKnown = true;
-        pokemon.statsKnown = true;
-        pokemon.movesKnown = true;
-        pokemon.moves.clear();
-        pokemon.moves.addAll(TropimonDex.defaultMoves(species));
+        PokemonSet pokemon = state.selectCatalogSpecies(species, attacker);
         String megaStone = TropimonDex.megaStoneForSpecies(species);
-        if (megaStone != null) {
-            pokemon.item = megaStone;
-        } else if (previousMegaStone != null && TropimonDex.normalize(previousMegaStone).equals(TropimonDex.normalize(pokemon.item))) {
-            pokemon.item = "None";
-        }
         if (attacker) {
             state.attackerSearch = speciesDisplayName(species);
             state.attackerItemSearch = itemDisplayName(pokemon.item);

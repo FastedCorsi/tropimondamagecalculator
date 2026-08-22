@@ -17,6 +17,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -386,6 +387,44 @@ final class DamageCalculatorTest {
         assertFalse(pokemon.battleHistoryKnown);
         assertEquals(0, pokemon.timesHit);
         assertEquals("", pokemon.lastMoveId);
+    }
+
+    @Test
+    void catalogSpeciesSelectionDoesNotKeepOwnedPokemonBuild() {
+        DamageCalcState state = new DamageCalcState();
+        PokemonSet owned = new PokemonSet(species("owned", "Owned", PokeType.DRAGON, PokeType.NONE,
+                80, 120, 90, 70, 90, 100, false));
+        owned.level = 82;
+        owned.item = "Leftovers";
+        owned.ability = "Multiscale";
+        owned.nature = TropimonDex.nature("adamant");
+        owned.evs.put(Stat.ATK, 252);
+        owned.evs.put(Stat.SPE, 252);
+        owned.ivs.put(Stat.HP, 17);
+        owned.boosts.put(Stat.ATK, 2);
+        owned.status = StatusCondition.BURN;
+        owned.currentHp = 42;
+        state.attacker = owned;
+
+        SpeciesData catalogSpecies = species("catalog", "Catalog", PokeType.WATER, PokeType.NONE,
+                90, 90, 90, 90, 90, 90, false);
+        PokemonSet selected = state.selectCatalogSpecies(catalogSpecies, true);
+
+        assertNotSame(owned, selected);
+        assertSame(selected, state.attacker);
+        assertSame(catalogSpecies, selected.species);
+        assertEquals(100, selected.level);
+        assertEquals("None", selected.item);
+        assertEquals(TropimonDex.defaultAbility(catalogSpecies), selected.ability);
+        assertEquals("serious", selected.nature.id());
+        assertEquals(StatusCondition.NONE, selected.status);
+        assertEquals(-1, selected.currentHp);
+        for (Stat stat : Stat.values()) {
+            assertEquals(0, selected.evs.get(stat));
+            assertEquals(31, selected.ivs.get(stat));
+            assertEquals(0, selected.boosts.get(stat));
+        }
+        assertEquals(TropimonDex.defaultMoves(catalogSpecies), selected.moves);
     }
 
     @Test
