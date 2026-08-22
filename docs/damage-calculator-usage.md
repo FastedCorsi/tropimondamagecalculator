@@ -2,13 +2,13 @@
 
 ## Installation
 
-Placez le JAR `tropimon-damage-calc-0.3.26.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
+Placez le JAR `tropimon-damage-calc-0.3.27.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
 
 Les sets Random Battle sont d'abord lus depuis `tropimon-random-battle-sets.json` ou `tropimon.json` lorsqu'un de ces fichiers est installé par le jeu ou par un mod Tropimon. Le calculateur vérifie ces fichiers toutes les cinq secondes et les recharge automatiquement après une mise à jour. Si aucun fichier du jeu n'existe, il utilise la copie Tropimon incluse dans son JAR. Aucune API externe n'est appelée en jeu.
 
 Lorsqu'un Pokémon possède plusieurs sets Random Battle, le calculateur compare le niveau, l'objet, le talent, le type Tera et les attaques du Pokémon live. Pour l'adversaire, les variantes sont éliminées à mesure que ses informations sont révélées ; les éléments communs sont préremplis immédiatement et le set complet ne l'est que lorsqu'une seule variante reste possible.
 
-Au début d'une Random Battle, si Cobblemon n'expose encore aucun EV pour un Pokémon du joueur, le calculateur utilise temporairement `85 EV` dans les six statistiques. Il conserve les EV live dès qu'au moins une valeur réelle est disponible. Tous les adversaires, y compris ceux déjà connus depuis le Team Preview, reçoivent la même répartition d'EV et une nature `Serious` selon les règles configurées pour ce format.
+Pendant une Random Battle Tropimon, le calculateur applique systématiquement `85 EV` dans les six statistiques. Cette normalisation évite qu'une lecture partielle de Cobblemon laisse certaines statistiques, notamment l'Attaque, à `0 EV`. Tous les adversaires, y compris ceux déjà connus depuis le Team Preview, reçoivent la même répartition d'EV et une nature `Serious` selon les règles configurées pour ce format.
 
 Pendant une Random Battle, un bouton `Set ?` apparaît pour un Pokémon dont plusieurs variantes restent possibles. Aucun set n'est appliqué automatiquement dans ce cas. Un premier clic choisit manuellement `Set 1`, puis les clics suivants parcourent les autres variantes. Le survol indique le nombre total de sets ainsi que l'objet, le talent et les quatre attaques de la variante sélectionnée. Les variantes identiques sont fusionnées à la lecture du fichier.
 

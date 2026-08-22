@@ -144,15 +144,18 @@ final class DamageCalculatorTest {
     }
 
     @Test
-    void randomBattleKeepsLiveEvsWhenAtLeastOneValueIsAvailable() {
+    void randomBattleNormalizesPartialLiveEvsToEightyFiveInEveryStat() {
         PokemonSet pokemon = new PokemonSet(species("randomlive", "Random Live", PokeType.NORMAL,
                 PokeType.NONE, 80, 80, 80, 80, 80, 80, false));
         pokemon.evs.put(Stat.HP, 84);
+        pokemon.evs.put(Stat.SPA, 252);
 
         CobblemonBattleDataProvider.applyRandomBattlePlayerEvDefaults(pokemon);
 
-        assertEquals(84, pokemon.evs.get(Stat.HP));
-        assertEquals(0, pokemon.evs.get(Stat.ATK));
+        for (Stat stat : Stat.values()) {
+            assertEquals(85, pokemon.evs.get(stat));
+        }
+        assertTrue(pokemon.statsKnown);
     }
 
     @Test

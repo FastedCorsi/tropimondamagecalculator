@@ -1045,7 +1045,7 @@ final class CobblemonBattleDataProvider {
     }
 
     static void applyRandomBattlePlayerEvDefaults(PokemonSet pokemon) {
-        if (pokemon == null || pokemon.evs.values().stream().anyMatch(value -> value != 0)) {
+        if (pokemon == null) {
             return;
         }
         pokemon.evs.replaceAll((stat, value) -> 85);
