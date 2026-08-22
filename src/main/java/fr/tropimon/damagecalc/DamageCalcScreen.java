@@ -626,9 +626,6 @@ public final class DamageCalcScreen extends Screen {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
                     x + 6, y + 26, 48, 0xFFB0B0B0);
         }
-        if (!pokemon.itemKnown || !pokemon.abilityKnown || !pokemon.natureKnown || !pokemon.statsKnown) {
-            drawTrimmed(context, "?", x + 48, y + 4, 8, 0xFFFFD166);
-        }
     }
 
     private void drawPokemonMiniTexture(DrawContext context, SpeciesData species, int x, int y, int size) {
