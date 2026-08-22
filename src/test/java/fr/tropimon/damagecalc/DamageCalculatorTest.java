@@ -128,10 +128,21 @@ final class DamageCalculatorTest {
     }
 
     @Test
-    void exactTropimonRandomBattleSetsAreBundledLocally() {
+    void exactTropimonRandomBattleSetsCanBeReadFromTheGameFile() {
+        TropimonRandomBattleSets.replaceFromReaderForTest(new StringReader("""
+                {
+                  "absol": {
+                    "82,leftovers,justified,swordsdance,playrough,suckerpunch,stoneedge,normal": 250,
+                    "82,lifeorb,justified,knockoff,playrough,suckerpunch,stoneedge,normal": 250
+                  },
+                  "ditto": {
+                    "85,choicescarf,imposter,transform,normal": 250
+                  }
+                }
+                """));
         List<TropimonRandomBattleSets.RandomBattleSet> absol = TropimonRandomBattleSets.setsFor("absol");
 
-        assertEquals(456, TropimonRandomBattleSets.speciesCount());
+        assertEquals(2, TropimonRandomBattleSets.speciesCount());
         assertEquals(2, absol.size());
         assertEquals(82, TropimonRandomBattleSets.suggestedLevel(
                 species("absol", "Absol", PokeType.DARK, PokeType.NONE,

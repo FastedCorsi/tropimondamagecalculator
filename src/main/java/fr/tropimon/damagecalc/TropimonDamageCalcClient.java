@@ -55,6 +55,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
             @Override
             public void reload(ResourceManager manager) {
                 TropimonDex.invalidateCobblemonData();
+                TropimonRandomBattleSets.reload();
                 CobblemonBattleDataProvider.invalidateRuntimeCaches();
                 CobblemonPokemonProfileRenderer.clearCaches();
             }
