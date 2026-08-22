@@ -1,12 +1,7 @@
-# Third-party assets
+# Runtime assets
 
-## PokeAPI Sprites
+The calculator does not package external Pokemon type icons. It resolves
+`cobblemon:textures/gui/types_small.png` through Minecraft's resource manager at runtime.
 
-Type icon PNGs come from `PokeAPI/sprites`:
-https://github.com/PokeAPI/sprites/tree/master/sprites/types/generation-viii/sword-shield/small
-
-The repository license file states the image contents are Copyright The Pokemon Company and the repository is distributed under CC0 1.0:
-https://github.com/PokeAPI/sprites/blob/master/LICENCE.txt
-
-The mod packages those PNG icons under:
-`src/main/resources/assets/tropimon_damage_calc/textures/gui/types/`
+Pokemon previews use Cobblemon's own model renderer and animations. Minecraft widgets and
+Tropimon-specific data remain local to the mod.

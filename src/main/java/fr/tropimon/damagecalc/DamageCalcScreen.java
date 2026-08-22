@@ -20,13 +20,15 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public final class DamageCalcScreen extends Screen {
-    private static final int PANEL = 300;
+    private static final int PANEL = 280;
     private static final int ROW = 18;
     private static final int MOVE_ROW = 20;
-    private static final int MOVE_FIELD_WIDTH = 162;
-    private static final int MOVE_DELETE_X = 166;
-    private static final int MOVE_Z_X = 194;
-    private static final int MOVE_RESULT_X = 228;
+    private static final int MOVE_FIELD_WIDTH = 146;
+    private static final int MOVE_DELETE_X = 150;
+    private static final int MOVE_DELETE_WIDTH = 22;
+    private static final int MOVE_Z_X = 176;
+    private static final int MOVE_Z_WIDTH = 28;
+    private static final int MOVE_RESULT_X = 208;
     private static final int MOVE_RESULT_WIDTH = 72;
     private static final int TOOLBAR_BUTTON_WIDTH = 76;
     private static final int CONTROL_GAP = 4;
@@ -133,7 +135,8 @@ public final class DamageCalcScreen extends Screen {
             if (move != null) {
                 moveField.setTooltip(Tooltip.of(Text.literal(moveDescription(move))));
             }
-            ButtonWidget deleteButton = addButton(x + MOVE_DELETE_X, y + slot * MOVE_ROW, 24, "X", button -> {
+            ButtonWidget deleteButton = addButton(x + MOVE_DELETE_X, y + slot * MOVE_ROW,
+                    MOVE_DELETE_WIDTH, "X", button -> {
                 source.deleteMove(moveSlot);
                 if (state.selectedMoveAttacker == fromAttacker && state.selectedMoveIndex == moveSlot) {
                     state.selectedMoveIndex = 0;
@@ -141,7 +144,7 @@ public final class DamageCalcScreen extends Screen {
                 reopen();
             });
             deleteButton.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.move.delete")));
-            ButtonWidget zButton = addButton(x + MOVE_Z_X, y + slot * MOVE_ROW, 30, "Z", button -> {
+            ButtonWidget zButton = addButton(x + MOVE_Z_X, y + slot * MOVE_ROW, MOVE_Z_WIDTH, "Z", button -> {
                 source.toggleZMove(moveSlot);
                 reopen();
             });
@@ -170,8 +173,8 @@ public final class DamageCalcScreen extends Screen {
         SearchKind natureKind = attacker ? SearchKind.ATTACKER_NATURE : SearchKind.DEFENDER_NATURE;
 
         String pokemonSearch = attacker ? state.attackerSearch : state.defenderSearch;
-        int selectorX = x + 72;
-        addSearchField(pokemonKind, selectorX, y, 204,
+        int selectorX = x + 64;
+        addSearchField(pokemonKind, selectorX, y, 146,
                 localizedSelectionValue(pokemonSearch, pokemon.species.name(), speciesDisplayName(pokemon.species)),
                 tr("screen.tropimon_damage_calc.search.pokemon"),
                 value -> {
@@ -182,7 +185,7 @@ public final class DamageCalcScreen extends Screen {
         boolean showRandomSet = prepareRandomSetSelector(pokemon, attacker);
 
         String itemSearch = attacker ? state.attackerItemSearch : state.defenderItemSearch;
-        TextFieldWidget itemField = addSearchField(itemKind, selectorX, y + 22, 204,
+        TextFieldWidget itemField = addSearchField(itemKind, selectorX, y + 22, 194,
                 localizedSelectionValue(itemSearch, pokemon.item, itemDisplayName(pokemon.item)),
                 tr("screen.tropimon_damage_calc.search.item"),
                 value -> {
@@ -193,7 +196,7 @@ public final class DamageCalcScreen extends Screen {
         addClearButton(x + PANEL - 22, y + 22, itemKind);
 
         String abilitySearch = attacker ? state.attackerAbilitySearch : state.defenderAbilitySearch;
-        TextFieldWidget abilityField = addSearchField(abilityKind, selectorX, y + 44, 88,
+        TextFieldWidget abilityField = addSearchField(abilityKind, selectorX, y + 44, 78,
                 localizedSelectionValue(abilitySearch, pokemon.ability, abilityDisplayName(pokemon.ability)),
                 tr("screen.tropimon_damage_calc.search.ability"),
                 value -> {
@@ -201,24 +204,24 @@ public final class DamageCalcScreen extends Screen {
                     else state.defenderAbilitySearch = value;
                 });
         abilityField.setTooltip(Tooltip.of(Text.literal(abilityDescription(pokemon.ability))));
-        addClearButton(selectorX + 90, y + 44, abilityKind);
-        TextFieldWidget natureField = addSearchField(natureKind, x + 188, y + 44, 88,
+        addClearButton(selectorX + 80, y + 44, abilityKind);
+        TextFieldWidget natureField = addSearchField(natureKind, x + 168, y + 44, 88,
                 pokemon.natureKnown ? natureDisplayName(pokemon.nature) : "", tr("screen.tropimon_damage_calc.search.nature"),
                 value -> {
                     if (attacker) state.attackerNatureSearch = value;
                     else state.defenderNatureSearch = value;
                 });
         natureField.setTooltip(Tooltip.of(Text.literal(natureDescription(pokemon.nature))));
-        addClearButton(x + 278, y + 44, natureKind);
+        addClearButton(x + 258, y + 44, natureKind);
 
         boolean doubles = state.field.doubles;
-        int levelWidth = showRandomSet ? (doubles ? 46 : 54) : (doubles ? 64 : 97);
-        int setWidth = showRandomSet ? (doubles ? 46 : 54) : 0;
+        int levelWidth = showRandomSet ? (doubles ? 43 : 50) : (doubles ? 52 : 90);
+        int setWidth = showRandomSet ? (doubles ? 43 : 50) : 0;
         int setX = x + levelWidth + CONTROL_GAP;
         int statusX = showRandomSet ? setX + setWidth + CONTROL_GAP : setX;
-        int statusWidth = showRandomSet ? (doubles ? 46 : 90) : (doubles ? 64 : 97);
+        int statusWidth = showRandomSet ? (doubles ? 43 : 86) : (doubles ? 52 : 90);
         int teraX = statusX + statusWidth + CONTROL_GAP;
-        int teraWidth = doubles ? (showRandomSet ? 46 : 64) : PANEL - (teraX - x);
+        int teraWidth = doubles ? (showRandomSet ? 43 : 52) : PANEL - (teraX - x);
         addButton(x, y + 66, levelWidth, "Nv " + pokemon.level, button -> {
             pokemon.level = nextLevel(pokemon.level);
             pokemon.currentHp = -1;
@@ -238,12 +241,16 @@ public final class DamageCalcScreen extends Screen {
             reopen();
         });
         if (doubles) {
-            ButtonWidget helpingHand = addToggleButton(x + 204, y + 66, 46, "HH", sideFor(attacker).helpingHand, button -> {
+            int supportWidth = showRandomSet ? 43 : 54;
+            int helpingHandX = teraX + teraWidth + CONTROL_GAP;
+            ButtonWidget helpingHand = addToggleButton(helpingHandX, y + 66, supportWidth,
+                    "HH", sideFor(attacker).helpingHand, button -> {
                 sideFor(attacker).helpingHand = !sideFor(attacker).helpingHand;
                 reopen();
             });
             helpingHand.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.tooltip.helping_hand")));
-            ButtonWidget friendGuard = addToggleButton(x + 254, y + 66, 46, "FG", sideFor(attacker).friendGuard, button -> {
+            ButtonWidget friendGuard = addToggleButton(helpingHandX + supportWidth + CONTROL_GAP,
+                    y + 66, supportWidth, "FG", sideFor(attacker).friendGuard, button -> {
                 sideFor(attacker).friendGuard = !sideFor(attacker).friendGuard;
                 reopen();
             });
@@ -252,7 +259,7 @@ public final class DamageCalcScreen extends Screen {
             SideConditions side = sideFor(attacker);
             String partnerSearch = attacker
                     ? state.attackerPartnerAbilitySearch : state.defenderPartnerAbilitySearch;
-            TextFieldWidget partnerField = addSearchField(partnerAbilityKind, x, y + 88, 150,
+            TextFieldWidget partnerField = addSearchField(partnerAbilityKind, x, y + 88, 140,
                     localizedSelectionValue(partnerSearch, side.partnerAbility,
                             abilityDisplayName(side.partnerAbility)),
                     tr("screen.tropimon_damage_calc.search.partner_ability"), value -> {
@@ -260,14 +267,14 @@ public final class DamageCalcScreen extends Screen {
                         else state.defenderPartnerAbilitySearch = value;
                     });
             partnerField.setTooltip(Tooltip.of(Text.literal(abilityDescription(side.partnerAbility))));
-            addClearButton(x + 152, y + 88, partnerAbilityKind);
-            ButtonWidget targets = addButton(x + 176, y + 88, 58,
+            addClearButton(x + 142, y + 88, partnerAbilityKind);
+            ButtonWidget targets = addButton(x + 164, y + 88, 52,
                     tr("screen.tropimon_damage_calc.targets", side.spreadTargets), button -> {
                         side.spreadTargets = side.spreadTargets == 2 ? 1 : 2;
                         reopen();
                     });
             targets.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.tooltip.targets")));
-            ButtonWidget wideGuard = addToggleButton(x + 238, y + 88, 62, "WG", side.wideGuard, button -> {
+            ButtonWidget wideGuard = addToggleButton(x + 220, y + 88, 60, "WG", side.wideGuard, button -> {
                 side.wideGuard = !side.wideGuard;
                 reopen();
             });
@@ -305,22 +312,22 @@ public final class DamageCalcScreen extends Screen {
                 reopen();
             });
         }
-        ButtonWidget atkPreset = addButton(x + 204, statY, 96, "Atk", button -> {
+        ButtonWidget atkPreset = addButton(x + 188, statY, 92, "Atk", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.ATK);
             reopen();
         });
         atkPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.atk")));
-        ButtonWidget spaPreset = addButton(x + 204, statY + 28, 96, "SpA", button -> {
+        ButtonWidget spaPreset = addButton(x + 188, statY + 28, 92, "SpA", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.SPA);
             reopen();
         });
         spaPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.spa")));
-        ButtonWidget defPreset = addButton(x + 204, statY + 56, 96, "Def", button -> {
+        ButtonWidget defPreset = addButton(x + 188, statY + 56, 92, "Def", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.DEF);
             reopen();
         });
         defPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.def")));
-        ButtonWidget spdPreset = addButton(x + 204, statY + 84, 96, "SpD", button -> {
+        ButtonWidget spdPreset = addButton(x + 188, statY + 84, 92, "SpD", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.SPD);
             reopen();
         });
@@ -414,22 +421,22 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private void addSideConditionsEditor(SideConditions side, int x, int y) {
-        ButtonWidget reflect = addToggleButton(x, y, 72, moveTranslation("reflect", "Reflect"), side.reflect, button -> {
+        ButtonWidget reflect = addToggleButton(x, y, 60, moveTranslation("reflect", "Reflect"), side.reflect, button -> {
             side.reflect = !side.reflect;
             reopen();
         });
         reflect.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.tooltip.reflect")));
-        ButtonWidget lightScreen = addToggleButton(x + 76, y, 72, moveTranslation("lightscreen", "Light Screen"), side.lightScreen, button -> {
+        ButtonWidget lightScreen = addToggleButton(x + 64, y, 82, moveTranslation("lightscreen", "Light Screen"), side.lightScreen, button -> {
             side.lightScreen = !side.lightScreen;
             reopen();
         });
         lightScreen.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.tooltip.light_screen")));
-        ButtonWidget veil = addToggleButton(x + 152, y, 72, moveTranslation("auroraveil", "Veil"), side.auroraVeil, button -> {
+        ButtonWidget veil = addToggleButton(x + 150, y, 62, moveTranslation("auroraveil", "Veil"), side.auroraVeil, button -> {
             side.auroraVeil = !side.auroraVeil;
             reopen();
         });
         veil.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.tooltip.veil")));
-        ButtonWidget tailwind = addToggleButton(x + 228, y, 72, moveTranslation("tailwind", "Tailwind"), side.tailwind, button -> {
+        ButtonWidget tailwind = addToggleButton(x + 216, y, 64, moveTranslation("tailwind", "Tailwind"), side.tailwind, button -> {
             side.tailwind = !side.tailwind;
             reopen();
         });
@@ -597,16 +604,17 @@ public final class DamageCalcScreen extends Screen {
             }
             int buttonX = x + MOVE_Z_X;
             int buttonY = moveY + slot * MOVE_ROW;
-            context.fill(buttonX, buttonY, buttonX + 30, buttonY + 20, 0xD0209E28);
-            context.drawBorder(buttonX, buttonY, 30, 20, 0xFF70FF72);
-            context.drawCenteredTextWithShadow(textRenderer, "Z", buttonX + 15, buttonY + 6, 0xFFFFFFFF);
+            context.fill(buttonX, buttonY, buttonX + MOVE_Z_WIDTH, buttonY + 20, 0xD0209E28);
+            context.drawBorder(buttonX, buttonY, MOVE_Z_WIDTH, 20, 0xFF70FF72);
+            context.drawCenteredTextWithShadow(textRenderer, "Z", buttonX + MOVE_Z_WIDTH / 2,
+                    buttonY + 6, 0xFFFFFFFF);
         }
     }
 
     private void drawPokemonInfo(DrawContext context, PokemonSet pokemon, int x, int y,
                                  float frameDelta, String animationSlot) {
         drawPokemonTexture(context, pokemon, x, y, frameDelta, animationSlot);
-        drawTypeIcons(context, pokemon.defensiveTypes(), x + 230, y, 20);
+        drawTypeIcons(context, pokemon.defensiveTypes(), x + 214, y, 18);
     }
 
     private int drawTypeIcons(DrawContext context, List<PokeType> types, int x, int y, int size) {
@@ -623,15 +631,15 @@ public final class DamageCalcScreen extends Screen {
 
     private void drawPokemonTexture(DrawContext context, PokemonSet pokemon, int x, int y,
                                     float frameDelta, String animationSlot) {
-        context.fill(x, y, x + 64, y + 64, 0xD014171C);
-        context.drawBorder(x, y, 64, 64, 0xFF606060);
+        context.fill(x, y, x + 56, y + 56, 0xD014171C);
+        context.drawBorder(x, y, 56, 56, 0xFF606060);
         if (!CobblemonPokemonProfileRenderer.drawAnimated(
-                context, pokemon.species, x + 2, y + 2, 60, frameDelta, animationSlot)) {
+                context, pokemon.species, x + 2, y + 2, 52, frameDelta, animationSlot)) {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
-                    x + 6, y + 28, 54, 0xFFB0B0B0);
+                    x + 4, y + 24, 48, 0xFFB0B0B0);
         }
         if (!pokemon.itemKnown || !pokemon.abilityKnown || !pokemon.natureKnown || !pokemon.statsKnown) {
-            drawTrimmed(context, "?", x + 54, y + 3, 8, 0xFFFFD166);
+            drawTrimmed(context, "?", x + 47, y + 3, 8, 0xFFFFD166);
         }
     }
 
@@ -826,6 +834,12 @@ public final class DamageCalcScreen extends Screen {
             drawTrimmed(context, move.basePower() + " "
                     + tr("screen.tropimon_damage_calc.category." + move.category().name().toLowerCase(Locale.ROOT)),
                     x + 146, y + 5, w - 151, textColor);
+            return;
+        }
+        if (suggestion.item() != null) {
+            boolean icon = GameItemIconRenderer.draw(context, suggestion.item(), x + 2, y + 1);
+            drawTrimmed(context, suggestion.label(), x + (icon ? 22 : 5), y + 5,
+                    w - (icon ? 27 : 10), textColor);
             return;
         }
         drawTrimmed(context, suggestion.label(), x + 5, y + 5, w - 10, textColor);
@@ -1127,7 +1141,7 @@ public final class DamageCalcScreen extends Screen {
         for (String item : TropimonDex.itemList()) {
             String display = itemDisplayName(item);
             if (!matches(item, query) && !matches(display, query)) continue;
-            suggestions.add(new Suggestion(display, () -> selectItem(item, attacker)));
+            suggestions.add(Suggestion.item(display, () -> selectItem(item, attacker), item));
         }
         sortSuggestions(suggestions);
         return suggestions;
@@ -1645,7 +1659,7 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private int panelWidth() {
-        return Math.min(668, Math.max(632, width - 24));
+        return Math.min(604, Math.max(592, width - 24));
     }
 
     private static boolean inside(int mouseX, int mouseY, int x, int y, int w, int h) {
@@ -1962,21 +1976,26 @@ public final class DamageCalcScreen extends Screen {
     private record SearchField(SearchKind kind, TextFieldWidget widget) {
     }
 
-    private record Suggestion(String label, Runnable apply, boolean hidden, SpeciesData species, MoveData move) {
+    private record Suggestion(String label, Runnable apply, boolean hidden, SpeciesData species,
+                              MoveData move, String item) {
         private Suggestion(String label, Runnable apply) {
-            this(label, apply, false, null, null);
+            this(label, apply, false, null, null, null);
         }
 
         private Suggestion(String label, Runnable apply, boolean hidden) {
-            this(label, apply, hidden, null, null);
+            this(label, apply, hidden, null, null, null);
         }
 
         private static Suggestion species(String label, Runnable apply, SpeciesData species) {
-            return new Suggestion(label, apply, false, species, null);
+            return new Suggestion(label, apply, false, species, null, null);
         }
 
         private static Suggestion move(String label, Runnable apply, MoveData move) {
-            return new Suggestion(label, apply, false, null, move);
+            return new Suggestion(label, apply, false, null, move, null);
+        }
+
+        private static Suggestion item(String label, Runnable apply, String item) {
+            return new Suggestion(label, apply, false, null, null, item);
         }
     }
 

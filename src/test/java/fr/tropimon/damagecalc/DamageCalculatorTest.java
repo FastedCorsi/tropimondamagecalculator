@@ -4,7 +4,6 @@ import com.google.gson.JsonParser;
 import net.minecraft.text.Text;
 import org.junit.jupiter.api.Test;
 
-import javax.imageio.ImageIO;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.StringReader;
@@ -18,11 +17,20 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DamageCalculatorTest {
+    @Test
+    void cobblemonTypeAtlasOrderIsUsed() {
+        assertEquals(0, TypeIconRenderer.atlasIndex(PokeType.NORMAL));
+        assertEquals(3, TypeIconRenderer.atlasIndex(PokeType.GRASS));
+        assertEquals(4, TypeIconRenderer.atlasIndex(PokeType.ELECTRIC));
+        assertEquals(17, TypeIconRenderer.atlasIndex(PokeType.FAIRY));
+    }
+
     private record TestBattlePokemon(int level) {
         public int getLevel() {
             return level;
@@ -2128,17 +2136,9 @@ final class DamageCalculatorTest {
     }
 
     @Test
-    void typeIconAtlasIsPackagedWithTheExpectedGrid() throws Exception {
-        try (var stream = DamageCalculatorTest.class.getResourceAsStream(
-                "/assets/tropimon_damage_calc/textures/gui/type_icons.png")) {
-            assertNotNull(stream);
-            var atlas = ImageIO.read(stream);
-            assertNotNull(atlas);
-            assertEquals(300, atlas.getWidth());
-            assertEquals(240, atlas.getHeight());
-            assertTrue((atlas.getRGB(30, 30) >>> 24) > 0);
-            assertTrue((atlas.getRGB(270, 210) >>> 24) == 0);
-        }
+    void externalTypeIconAtlasIsNotPackaged() {
+        assertNull(DamageCalculatorTest.class.getResource(
+                "/assets/tropimon_damage_calc/textures/gui/type_icons.png"));
     }
 
     private static SpeciesData species(String id, String name, PokeType type1, PokeType type2, int hp, int atk, int def, int spa, int spd, int spe, boolean nfe) {
