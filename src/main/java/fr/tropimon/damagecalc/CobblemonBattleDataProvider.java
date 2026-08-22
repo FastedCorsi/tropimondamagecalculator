@@ -104,8 +104,12 @@ final class CobblemonBattleDataProvider {
                 }
                 debugParty("party loaded count=" + output.size() + " source=storage " + className(storage));
             }
-            if (battle != null && actor != null && isRandomBattle(battle, actor, client)) {
+            boolean randomBattle = battle != null
+                    ? actor != null && isRandomBattle(battle, actor, client)
+                    : previewAvailable && randomBattlePreviewExpected();
+            if (randomBattle) {
                 for (PokemonSet pokemon : output) {
+                    applyRandomBattlePlayerEvDefaults(pokemon);
                     TropimonRandomBattleSets.applyInference(pokemon);
                 }
             }
@@ -691,6 +695,8 @@ final class CobblemonBattleDataProvider {
             PokemonSet opponentPartner = opponentActives.size() > 1
                     ? battlePokemonSet(opponentActives.get(1), false, client) : null;
             if (randomBattle) {
+                applyRandomBattlePlayerEvDefaults(player);
+                applyRandomBattlePlayerEvDefaults(playerPartner);
                 TropimonRandomBattleSets.applyInference(player);
                 TropimonRandomBattleSets.applyInference(playerPartner);
                 if (!hasExactRandomOpponent(opponent)) {
@@ -849,6 +855,7 @@ final class CobblemonBattleDataProvider {
             for (Object live : iterable) {
                 PokemonSet converted = convertPartyPokemon(live);
                 if (converted != null) {
+                    applyRandomBattlePlayerEvDefaults(converted);
                     return converted;
                 }
             }
@@ -961,6 +968,14 @@ final class CobblemonBattleDataProvider {
         opponent.nature = TropimonDex.nature("serious");
         opponent.statsKnown = true;
         opponent.natureKnown = true;
+    }
+
+    static void applyRandomBattlePlayerEvDefaults(PokemonSet pokemon) {
+        if (pokemon == null || pokemon.evs.values().stream().anyMatch(value -> value != 0)) {
+            return;
+        }
+        pokemon.evs.replaceAll((stat, value) -> 85);
+        pokemon.statsKnown = true;
     }
 
     private static PokemonSet convertPartyPokemonByUuid(MinecraftClient client, UUID uuid) {
