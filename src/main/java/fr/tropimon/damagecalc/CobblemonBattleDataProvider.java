@@ -53,6 +53,7 @@ final class CobblemonBattleDataProvider {
     private static Object capturedPreviewScreen;
     private static Object capturedPreviewInformation;
     private static Object loggedPreviewScreen;
+    private static Object loggedRandomPreviewCandidate;
     private static long previewOpponentRosterExpiresAt;
     private static long previewOpponentFullRosterExpiresAt;
     private static Object exactRandomPreviewBattle;
@@ -185,6 +186,7 @@ final class CobblemonBattleDataProvider {
     }
 
     static void captureVisibleTeamPreview(Object screen) {
+        logRandomPreviewCandidate(screen);
         if (captureInventoryTeamPreview(screen)) {
             return;
         }
@@ -248,7 +250,9 @@ final class CobblemonBattleDataProvider {
     }
 
     private static boolean captureInventoryTeamPreview(Object screen) {
-        if (!looksLikeTeamPreviewScreen(screen)) {
+        boolean recognizedTitle = looksLikeTeamPreviewScreen(screen);
+        boolean randomBattleFallback = !recognizedTitle && randomBattlePreviewExpected();
+        if (!recognizedTitle && !randomBattleFallback) {
             return false;
         }
         if (!(screen instanceof HandledScreen<?> handledScreen)) {
@@ -268,6 +272,9 @@ final class CobblemonBattleDataProvider {
         if (capturedPlayers.isEmpty() && capturedOpponents.isEmpty()) {
             return false;
         }
+        if (randomBattleFallback && (capturedPlayers.isEmpty() || capturedOpponents.isEmpty())) {
+            return false;
+        }
         if (screen == capturedPreviewScreen && screen == capturedPreviewInformation
                 && previewPlayerRoster.keySet().equals(capturedPlayers.keySet())
                 && previewOpponentRoster.keySet().equals(capturedOpponents.keySet())) {
@@ -283,9 +290,30 @@ final class CobblemonBattleDataProvider {
         previewOpponentFullRoster.clear();
         previewOpponentFullRosterExpiresAt = 0L;
         previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source=inventory players={} opponents={}",
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] team preview captured source=inventory title={} fallback={} players={} opponents={}",
+                minecraftScreenTitle(screen), randomBattleFallback,
                 capturedPlayers.size(), capturedOpponents.size());
         return true;
+    }
+
+    private static boolean randomBattlePreviewExpected() {
+        return Boolean.TRUE.equals(randomBattleDetected)
+                || System.currentTimeMillis() <= randomBattleQueueExpiresAt;
+    }
+
+    private static void logRandomPreviewCandidate(Object screen) {
+        if (!randomBattlePreviewExpected() || screen == null || screen == loggedRandomPreviewCandidate) {
+            return;
+        }
+        loggedRandomPreviewCandidate = screen;
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] random preview candidate class={} title={}",
+                className(screen), minecraftScreenTitle(screen));
+    }
+
+    private static String minecraftScreenTitle(Object screen) {
+        return screen instanceof Screen minecraftScreen ? minecraftScreen.getTitle().getString() : "";
     }
 
     private static LinkedHashMap<String, PokemonSet> inventoryPreviewRoster(List<Slot> slots, int containerSlots,
@@ -1820,6 +1848,7 @@ final class CobblemonBattleDataProvider {
         capturedPreviewScreen = null;
         capturedPreviewInformation = null;
         loggedPreviewScreen = null;
+        loggedRandomPreviewCandidate = null;
         loggedLocalHydration = "";
         randomBattleIdentity = null;
         randomBattleDetected = null;
