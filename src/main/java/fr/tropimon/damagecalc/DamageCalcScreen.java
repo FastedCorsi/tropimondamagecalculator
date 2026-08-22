@@ -622,7 +622,7 @@ public final class DamageCalcScreen extends Screen {
                                     String animationSlot) {
         TropimonFrameRenderer.drawCompact(context, x, y, 60, 60);
         if (!CobblemonPokemonProfileRenderer.drawAnimated(
-                context, pokemon.species, x + 4, y + 4, 52, animationSlot)) {
+                context, pokemon.species, x + 5, y + 5, 50, animationSlot)) {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
                     x + 6, y + 26, 48, 0xFFB0B0B0);
         }
