@@ -630,14 +630,14 @@ public final class DamageCalcScreen extends Screen {
 
     private void drawPokemonTexture(DrawContext context, PokemonSet pokemon, int x, int y,
                                     float frameDelta, String animationSlot) {
-        CobblemonPanelRenderer.drawBorder(context, x, y, 56, 56);
+        TropimonFrameRenderer.drawCompact(context, x, y, 56, 56);
         if (!CobblemonPokemonProfileRenderer.drawAnimated(
-                context, pokemon.species, x + 2, y + 2, 52, frameDelta, animationSlot)) {
+                context, pokemon.species, x + 4, y + 4, 48, frameDelta, animationSlot)) {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
-                    x + 4, y + 24, 48, 0xFFB0B0B0);
+                    x + 6, y + 24, 44, 0xFFB0B0B0);
         }
         if (!pokemon.itemKnown || !pokemon.abilityKnown || !pokemon.natureKnown || !pokemon.statsKnown) {
-            drawTrimmed(context, "?", x + 47, y + 3, 8, 0xFFFFD166);
+            drawTrimmed(context, "?", x + 44, y + 4, 8, 0xFFFFD166);
         }
     }
 

@@ -14,6 +14,8 @@ final class TropimonFrameRenderer {
     private static final int RIGHT = 16;
     private static final int TOP = 14;
     private static final int BOTTOM = 12;
+    private static final int COMPACT_HORIZONTAL = 5;
+    private static final int COMPACT_VERTICAL = 4;
     private static final int BACKGROUND = 0x9810171C;
     private static Boolean textureAvailable;
 
@@ -29,28 +31,49 @@ final class TropimonFrameRenderer {
             return;
         }
 
-        int innerWidth = width - LEFT - RIGHT;
-        int innerHeight = height - TOP - BOTTOM;
+        drawFrame(context, x, y, width, height, LEFT, RIGHT, TOP, BOTTOM, true);
+    }
+
+    static void drawCompact(DrawContext context, int x, int y, int width, int height) {
+        if (width < COMPACT_HORIZONTAL * 2 || height < COMPACT_VERTICAL * 2) {
+            return;
+        }
+        if (!textureAvailable()) {
+            CobblemonPanelRenderer.drawBorder(context, x, y, width, height);
+            return;
+        }
+        drawFrame(context, x, y, width, height,
+                COMPACT_HORIZONTAL, COMPACT_HORIZONTAL,
+                COMPACT_VERTICAL, COMPACT_VERTICAL, false);
+    }
+
+    private static void drawFrame(DrawContext context, int x, int y, int width, int height,
+                                  int left, int right, int top, int bottom,
+                                  boolean fillBackground) {
+        int innerWidth = width - left - right;
+        int innerHeight = height - top - bottom;
         int sourceInnerWidth = TEXTURE_WIDTH - LEFT - RIGHT;
         int sourceInnerHeight = TEXTURE_HEIGHT - TOP - BOTTOM;
 
-        context.fill(x + LEFT, y + TOP, x + width - RIGHT, y + height - BOTTOM, BACKGROUND);
+        if (fillBackground) {
+            context.fill(x + left, y + top, x + width - right, y + height - bottom, BACKGROUND);
+        }
 
-        drawPart(context, x + LEFT, y, innerWidth, TOP,
+        drawPart(context, x + left, y, innerWidth, top,
                 LEFT, 0, sourceInnerWidth, TOP);
-        drawPart(context, x + LEFT, y + height - BOTTOM, innerWidth, BOTTOM,
+        drawPart(context, x + left, y + height - bottom, innerWidth, bottom,
                 LEFT, TEXTURE_HEIGHT - BOTTOM, sourceInnerWidth, BOTTOM);
-        drawPart(context, x, y + TOP, LEFT, innerHeight,
+        drawPart(context, x, y + top, left, innerHeight,
                 0, TOP, LEFT, sourceInnerHeight);
-        drawPart(context, x + width - RIGHT, y + TOP, RIGHT, innerHeight,
+        drawPart(context, x + width - right, y + top, right, innerHeight,
                 TEXTURE_WIDTH - RIGHT, TOP, RIGHT, sourceInnerHeight);
 
-        drawPart(context, x, y, LEFT, TOP, 0, 0, LEFT, TOP);
-        drawPart(context, x + width - RIGHT, y, RIGHT, TOP,
+        drawPart(context, x, y, left, top, 0, 0, LEFT, TOP);
+        drawPart(context, x + width - right, y, right, top,
                 TEXTURE_WIDTH - RIGHT, 0, RIGHT, TOP);
-        drawPart(context, x, y + height - BOTTOM, LEFT, BOTTOM,
+        drawPart(context, x, y + height - bottom, left, bottom,
                 0, TEXTURE_HEIGHT - BOTTOM, LEFT, BOTTOM);
-        drawPart(context, x + width - RIGHT, y + height - BOTTOM, RIGHT, BOTTOM,
+        drawPart(context, x + width - right, y + height - bottom, right, bottom,
                 TEXTURE_WIDTH - RIGHT, TEXTURE_HEIGHT - BOTTOM, RIGHT, BOTTOM);
     }
 
