@@ -128,6 +128,22 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void exactTropimonRandomBattleSetsAreBundledLocally() {
+        List<TropimonRandomBattleSets.RandomBattleSet> absol = TropimonRandomBattleSets.setsFor("absol");
+
+        assertEquals(456, TropimonRandomBattleSets.speciesCount());
+        assertEquals(2, absol.size());
+        assertEquals(82, TropimonRandomBattleSets.suggestedLevel(
+                species("absol", "Absol", PokeType.DARK, PokeType.NONE,
+                        65, 130, 60, 75, 60, 75, false), 100));
+        assertTrue(absol.stream().anyMatch(set -> set.itemId().equals("leftovers")
+                && set.abilityId().equals("justified")
+                && set.moveIds().contains("swordsdance")
+                && set.weight() == 250));
+        assertEquals(List.of("transform"), TropimonRandomBattleSets.setsFor("ditto").getFirst().moveIds());
+    }
+
+    @Test
     void localRegionalFormIsNotDowngradedByBaseBattleSpecies() {
         SpeciesData baseStats = species("ninetales", "Ninetales", PokeType.FIRE, PokeType.NONE,
                 73, 76, 75, 81, 100, 100, false);

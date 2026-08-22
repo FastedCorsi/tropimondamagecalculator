@@ -574,13 +574,14 @@ final class CobblemonBattleDataProvider {
             ArrayList<Object> opponentActives = opponentActivePokemon(battle, localActor);
             Object localActive = localActives.isEmpty() ? null : localActives.getFirst();
             Object opponentActive = opponentActives.isEmpty() ? null : opponentActives.getFirst();
+            boolean randomBattle = isRandomBattle(battle, localActor, client);
             PokemonSet player = battlePokemonSet(localActive, true, client);
             PokemonSet opponent = battlePokemonSet(opponentActive, false, client);
             PokemonSet playerPartner = localActives.size() > 1
                     ? battlePokemonSet(localActives.get(1), true, client) : null;
             PokemonSet opponentPartner = opponentActives.size() > 1
                     ? battlePokemonSet(opponentActives.get(1), false, client) : null;
-            if (isRandomBattle(battle, localActor, client)) {
+            if (randomBattle) {
                 applyRandomBattleOpponentRules(player, opponent);
                 applyRandomBattleOpponentRules(player, opponentPartner);
             }
@@ -1067,7 +1068,10 @@ final class CobblemonBattleDataProvider {
                 set.moves.add(null);
             }
         }
-        set.level = battlePokemonLevel(battlePokemon, set.level);
+        int fallbackLevel = Boolean.TRUE.equals(randomBattleDetected)
+                ? TropimonRandomBattleSets.suggestedLevel(species, set.level)
+                : set.level;
+        set.level = battlePokemonLevel(battlePokemon, fallbackLevel);
         Object properties = invokeOptional(battlePokemon, "getProperties");
         applyBattleProperties(set, properties);
         applyBattleRuntime(set, battlePokemon);

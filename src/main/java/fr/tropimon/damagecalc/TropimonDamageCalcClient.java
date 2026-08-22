@@ -60,6 +60,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
             }
         });
         TropimonDex.load();
+        TropimonRandomBattleSets.load();
 
         openCalculatorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.tropimon_damage_calc.open",

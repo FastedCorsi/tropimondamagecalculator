@@ -2,7 +2,7 @@
 
 ## Installation
 
-Placez le JAR `tropimon-damage-calc-0.3.2.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
+Placez le JAR `tropimon-damage-calc-0.3.3.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
 
 ## Ouvrir le calculateur
 
