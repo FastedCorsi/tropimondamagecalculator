@@ -109,5 +109,7 @@
   "screen.tropimon_damage_calc.model_unavailable": "Modèle ?",
   "result.tropimon_damage_calc.no_damage": "Aucun dégât",
   "screen.tropimon_damage_calc.random_set": "Set %s",
+  "screen.tropimon_damage_calc.random_set.unknown": "Set ?",
+  "screen.tropimon_damage_calc.random_set.unknown.tooltip": "%s sets sont encore possibles. Cliquez pour en choisir un manuellement.",
   "screen.tropimon_damage_calc.random_set.tooltip": "Set %s/%s | Objet : %s | Talent : %s | Attaques : %s"
 }

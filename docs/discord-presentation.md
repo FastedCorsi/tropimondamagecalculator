@@ -2,7 +2,7 @@
 
 ## Message prêt à publier
 
-**Tropimon Damage Calculator 0.3.24 est disponible**
+**Tropimon Damage Calculator 0.3.25 est disponible**
 
 Un calculateur de dégâts Cobblemon directement intégré à Minecraft, pensé pour préparer un duel et vérifier rapidement un match-up sans quitter le jeu.
 
@@ -55,7 +55,8 @@ La mise à jour du jour améliore fortement l'intégration aux combats Tropimon.
 - capture du Team Preview, y compris l'écran d'inventaire de sélection du lead ;
 - déduplication des équipes et correction des formes régionales ;
 - déduction progressive du set adverse avec le niveau, l'objet, le talent, le Tera et les attaques révélées ;
-- bouton `Set N` lorsqu'il reste plusieurs variantes, avec `Set 1` chargé immédiatement et détail du set au survol ;
+- bouton `Set ?` lorsqu'il reste plusieurs variantes, sans sélection automatique risquée, puis choix manuel avec le détail du set au survol ;
+- déduction prudente avec les attaques, talents révélés comme `Intimidate`, objets confirmés comme `Leftovers`, niveau et Tera ;
 - fusion des sets identiques et prise en charge de toutes les variantes disponibles.
 
 **Interface**
@@ -81,4 +82,4 @@ Ouverture avec le bouton `Calc` en combat, `/tropicalc` ou la touche configurabl
 
 ## Version courte
 
-**Tropimon Damage Calculator 0.3.24** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon et propose un sélecteur `Set N` lorsque plusieurs variantes restent possibles. Le premier set est chargé immédiatement, les doublons sont fusionnés et un fallback de `85 EV` par statistique est utilisé si Cobblemon ne fournit encore aucun EV au début du combat. Cette répartition est maintenant appliquée à tous les adversaires, y compris ceux provenant d'un Team Preview déjà résolu. L'interface compacte utilise les modèles animés, les icônes de type et d'objet ainsi que le grand cadre du navigateur Tropimon avec un fond sombre semi-transparent et des cadres cyan autour des portraits. Les modèles disposent d'une marge régulière et l'ancien indicateur `?` superposé aux portraits a été retiré. La fermeture utilise maintenant une petite croix ancrée dans l'angle supérieur droit, mise en évidence en rouge au survol. Les colonnes de statistiques sont centrées, les presets EV sont plus compacts et les titres d'attaques mieux espacés. La sélection d'un Pokémon générique réinitialise correctement son set au lieu de conserver les EV, IV et réglages d'un Pokémon de l'équipe. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.
+**Tropimon Damage Calculator 0.3.25** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon. Une attaque seule ne force plus arbitrairement le premier set : tant que plusieurs variantes restent compatibles, le sélecteur affiche `Set ?` et laisse le choix manuel. Les attaques, talents révélés comme `Intimidate`, objets confirmés comme `Leftovers`, niveaux et types Tera affinent la déduction ; le set complet n'est appliqué automatiquement que lorsqu'une seule variante reste possible. Les doublons sont fusionnés et un fallback de `85 EV` par statistique est utilisé si Cobblemon ne fournit encore aucun EV au début du combat. Cette répartition est appliquée à tous les adversaires, y compris ceux provenant d'un Team Preview déjà résolu. L'interface compacte utilise les modèles animés, les icônes de type et d'objet ainsi que le grand cadre du navigateur Tropimon avec un fond sombre semi-transparent et des cadres cyan autour des portraits. Les modèles disposent d'une marge régulière et l'ancien indicateur `?` superposé aux portraits a été retiré. La fermeture utilise une petite croix ancrée dans l'angle supérieur droit, mise en évidence en rouge au survol. Les colonnes de statistiques sont centrées, les presets EV sont plus compacts et les titres d'attaques mieux espacés. La sélection d'un Pokémon générique réinitialise correctement son set au lieu de conserver les EV, IV et réglages d'un Pokémon de l'équipe. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.

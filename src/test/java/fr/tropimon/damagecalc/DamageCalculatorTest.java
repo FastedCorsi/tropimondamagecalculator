@@ -227,6 +227,73 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void randomSetInferenceWaitsForCertainMoveAbilityAndItemEvidence() {
+        TropimonRandomBattleSets.replaceFromReaderForTest(new StringReader("""
+                {
+                  "gyarados": {
+                    "81,leftovers,intimidate,dragondance,waterfall,earthquake,outrage,normal": 250,
+                    "81,lumberry,intimidate,dragondance,waterfall,earthquake,outrage,normal": 250,
+                    "81,lifeorb,intimidate,dragondance,waterfall,earthquake,outrage,normal": 250,
+                    "81,heavydutyboots,intimidate,dragondance,waterfall,earthquake,outrage,normal": 250,
+                    "81,choicescarf,moxie,icefang,waterfall,earthquake,outrage,normal": 250
+                  },
+                  "gholdengo": {
+                    "80,airballoon,goodasgold,makeitrain,recover,shadowball,nastyplot,normal": 250,
+                    "80,choicespecs,goodasgold,makeitrain,thunderbolt,shadowball,trick,normal": 250,
+                    "80,choicescarf,goodasgold,makeitrain,thunderbolt,shadowball,trick,normal": 250
+                  }
+                }
+                """));
+        SpeciesData gyaradosSpecies = species("gyarados", "Gyarados", PokeType.WATER, PokeType.FLYING,
+                95, 125, 79, 60, 100, 81, false);
+        PokemonSet gyarados = new PokemonSet(gyaradosSpecies);
+        gyarados.level = 81;
+        gyarados.item = "None";
+        gyarados.itemKnown = false;
+        gyarados.ability = "Intimidate";
+        gyarados.abilityKnown = true;
+        gyarados.moves.clear();
+        while (gyarados.moves.size() < 4) gyarados.moves.add(null);
+        gyarados.setMove(0, move("waterfall", "Waterfall", PokeType.WATER,
+                DamageCategory.PHYSICAL, 80, false));
+
+        assertEquals(4, TropimonRandomBattleSets.applyInference(gyarados));
+        assertFalse(gyarados.itemKnown);
+
+        gyarados.item = "Leftovers";
+        gyarados.itemKnown = true;
+        assertEquals(1, TropimonRandomBattleSets.applyInference(gyarados));
+        assertTrue(TropimonRandomBattleSets.matchingSets(gyarados).getFirst().moveIds()
+                .contains("dragondance"));
+
+        PokemonSet moxieGyarados = new PokemonSet(gyaradosSpecies);
+        moxieGyarados.level = 81;
+        moxieGyarados.itemKnown = false;
+        moxieGyarados.ability = "Moxie";
+        moxieGyarados.abilityKnown = true;
+        moxieGyarados.moves.clear();
+        while (moxieGyarados.moves.size() < 4) moxieGyarados.moves.add(null);
+        moxieGyarados.setMove(0, move("waterfall", "Waterfall", PokeType.WATER,
+                DamageCategory.PHYSICAL, 80, false));
+        assertEquals(1, TropimonRandomBattleSets.applyInference(moxieGyarados));
+        assertEquals("choicescarf", TropimonDex.normalize(moxieGyarados.item));
+
+        PokemonSet gholdengo = new PokemonSet(species("gholdengo", "Gholdengo",
+                PokeType.STEEL, PokeType.GHOST, 87, 60, 95, 133, 91, 84, false));
+        gholdengo.level = 80;
+        gholdengo.itemKnown = false;
+        gholdengo.ability = "Good as Gold";
+        gholdengo.abilityKnown = true;
+        gholdengo.moves.clear();
+        while (gholdengo.moves.size() < 4) gholdengo.moves.add(null);
+        gholdengo.setMove(0, move("shadowball", "Shadow Ball", PokeType.GHOST,
+                DamageCategory.SPECIAL, 80, false));
+
+        assertEquals(3, TropimonRandomBattleSets.applyInference(gholdengo));
+        assertFalse(gholdengo.itemKnown);
+    }
+
+    @Test
     void bundledTropimonRandomBattleSnapshotContainsExactSets() throws Exception {
         var stream = DamageCalculatorTest.class.getResourceAsStream(
                 "/assets/tropimon_damage_calc/data/tropimon-random-battle-sets.json");
@@ -366,6 +433,34 @@ final class DamageCalculatorTest {
             assertEquals("Sturdy", state.defender.ability);
             assertTrue(state.defender.abilityKnown);
             assertEquals("None", state.defender.item);
+            assertTrue(state.defender.itemKnown);
+        } finally {
+            state.attacker = previousAttacker;
+            state.defender = previousDefender;
+            CobblemonBattleConditionTracker.resetForBattle(null);
+        }
+    }
+
+    @Test
+    void leftoversHealingRevealsTheOpponentHeldItem() {
+        DamageCalcState state = DamageCalcState.shared();
+        PokemonSet previousAttacker = state.attacker;
+        PokemonSet previousDefender = state.defender;
+        Object battle = new Object();
+        try {
+            state.attacker = new PokemonSet(species("ally", "Ally", PokeType.NORMAL, PokeType.NONE,
+                    80, 80, 80, 80, 80, 80, false));
+            state.defender = new PokemonSet(species("gyarados", "Gyarados", PokeType.WATER, PokeType.FLYING,
+                    95, 125, 79, 60, 100, 81, false));
+            state.defender.battleName = "Gyarados";
+            state.defender.item = "None";
+            state.defender.itemKnown = false;
+            CobblemonBattleConditionTracker.resetForBattle(battle);
+
+            CobblemonBattleConditionTracker.accept(Text.translatable("cobblemon.battle.heal.leftovers",
+                    Text.literal("The opposing Gyarados"), Text.translatable("item.cobblemon.leftovers")));
+
+            assertEquals("leftovers", TropimonDex.normalize(state.defender.item));
             assertTrue(state.defender.itemKnown);
         } finally {
             state.attacker = previousAttacker;

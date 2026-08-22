@@ -2,7 +2,7 @@
 
 ## Installation
 
-Placez le JAR `tropimon-damage-calc-0.3.24.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
+Placez le JAR `tropimon-damage-calc-0.3.25.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
 
 Les sets Random Battle sont d'abord lus depuis `tropimon-random-battle-sets.json` ou `tropimon.json` lorsqu'un de ces fichiers est installé par le jeu ou par un mod Tropimon. Le calculateur vérifie ces fichiers toutes les cinq secondes et les recharge automatiquement après une mise à jour. Si aucun fichier du jeu n'existe, il utilise la copie Tropimon incluse dans son JAR. Aucune API externe n'est appelée en jeu.
 
@@ -10,7 +10,7 @@ Lorsqu'un Pokémon possède plusieurs sets Random Battle, le calculateur compare
 
 Au début d'une Random Battle, si Cobblemon n'expose encore aucun EV pour un Pokémon du joueur, le calculateur utilise temporairement `85 EV` dans les six statistiques. Il conserve les EV live dès qu'au moins une valeur réelle est disponible. Tous les adversaires, y compris ceux déjà connus depuis le Team Preview, reçoivent la même répartition d'EV et une nature `Serious` selon les règles configurées pour ce format.
 
-Pendant une Random Battle, un bouton `Set N` apparaît pour un Pokémon dont plusieurs variantes restent possibles. Le `Set 1` est appliqué dès l'affichage, puis chaque clic applique la variante suivante. Le survol indique le nombre total de sets ainsi que l'objet, le talent et les quatre attaques de la variante. Les variantes identiques sont fusionnées à la lecture du fichier.
+Pendant une Random Battle, un bouton `Set ?` apparaît pour un Pokémon dont plusieurs variantes restent possibles. Aucun set n'est appliqué automatiquement dans ce cas. Un premier clic choisit manuellement `Set 1`, puis les clics suivants parcourent les autres variantes. Le survol indique le nombre total de sets ainsi que l'objet, le talent et les quatre attaques de la variante sélectionnée. Les variantes identiques sont fusionnées à la lecture du fichier.
 
 Les modèles animés, les icônes de type et les icônes d'objets sont chargés directement depuis les ressources Minecraft/Cobblemon actives. Les resource packs compatibles Cobblemon sont donc repris automatiquement et aucun sprite de type externe n'est embarqué.
 

@@ -34,10 +34,11 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 - Déduction progressive des valeurs communes sans inventer une information qui différencie encore plusieurs sets.
 - Résolution automatique du set complet lorsqu'une seule variante reste compatible.
 
-### Sélecteur `Set N`
+### Sélecteur de set
 
 - Affichage uniquement pendant une Random Battle et uniquement lorsqu'il reste plusieurs variantes utiles.
-- Chargement immédiat de `Set 1` dès l'apparition du sélecteur.
+- Affichage initial de `Set ?` sans modifier le Pokémon tant que plusieurs variantes restent possibles.
+- Chargement manuel de `Set 1` au premier clic.
 - Passage cyclique à `Set 2`, `Set 3` et aux variantes suivantes au clic.
 - Nombre de boutons adapté au nombre réel de sets, sans limite codée à trois variantes.
 - Tooltip indiquant le numéro, le nombre total de sets, l'objet, le talent et les quatre attaques.
@@ -47,7 +48,11 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 
 - Les attaques utilisées par l'adversaire sont ajoutées à son set depuis les messages structurés Cobblemon.
 - Chaque attaque révélée élimine les variantes incompatibles.
-- Les objets, talents et types Tera révélés affinent la même déduction.
+- Les objets, talents et types Tera révélés affinent la même déduction, notamment les talents d'entrée en jeu comme `Intimidate`.
+- Les soins de fin de tour provoqués par `Leftovers` confirment désormais explicitement l'objet tenu.
+- Une attaque seule ne sélectionne plus arbitrairement le premier set restant : le set complet n'est appliqué automatiquement que lorsqu'une seule variante est compatible avec toutes les informations certaines.
+- Tant que plusieurs variantes restent compatibles, le bouton affiche `Set ?` et laisse le choix manuel à l'utilisateur.
+- Le sélecteur manuel ne parcourt que les variantes encore compatibles avec les attaques, talents et objets déjà révélés.
 - Lorsque le preview n'expose pas le set exact, l'adversaire reçoit la même répartition d'EV que le Pokémon du joueur et une nature `Serious`, conformément aux règles configurées pour ce format.
 - Les informations privées non révélées restent inconnues en dehors de ces règles et des données communes aux variantes.
 

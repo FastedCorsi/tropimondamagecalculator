@@ -403,7 +403,8 @@ final class CobblemonBattleConditionTracker {
         if (key.startsWith("cobblemon.battle.item.")
                 || key.startsWith("cobblemon.battle.enditem.")
                 || key.equals("cobblemon.battle.damage.item")
-                || key.equals("cobblemon.battle.heal.item")) {
+                || key.equals("cobblemon.battle.heal.item")
+                || key.equals("cobblemon.battle.heal.leftovers")) {
             return recordItem(key, arguments);
         }
         return false;

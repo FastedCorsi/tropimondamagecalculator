@@ -56,6 +56,8 @@ public final class DamageCalcScreen extends Screen {
     private String defenderRandomSetSpecies = "";
     private int attackerRandomSetIndex = -1;
     private int defenderRandomSetIndex = -1;
+    private List<TropimonRandomBattleSets.RandomBattleSet> attackerRandomSetOptions = List.of();
+    private List<TropimonRandomBattleSets.RandomBattleSet> defenderRandomSetOptions = List.of();
 
     public DamageCalcScreen(DamageCalcState state) {
         super(Text.translatable("screen.tropimon_damage_calc.title"));
@@ -347,36 +349,56 @@ public final class DamageCalcScreen extends Screen {
             }
         }
         int storedIndex = attacker ? attackerRandomSetIndex : defenderRandomSetIndex;
-        int candidates = TropimonRandomBattleSets.matchingSets(pokemon).size();
-        if (candidates == 1 && storedIndex < 0) {
-            return false;
-        }
         if (storedIndex < 0) {
-            TropimonRandomBattleSets.applySet(pokemon, sets.getFirst());
-            setRandomSetIndex(attacker, 0);
-            updateRandomSetSearchFields(pokemon, attacker);
+            List<TropimonRandomBattleSets.RandomBattleSet> candidates =
+                    TropimonRandomBattleSets.matchingSets(pokemon);
+            if (candidates.size() == 1) {
+                setRandomSetOptions(attacker, List.of());
+                return false;
+            }
+            setRandomSetOptions(attacker, candidates.isEmpty() ? sets : candidates);
+        } else if (randomSetOptions(attacker).isEmpty()) {
+            setRandomSetOptions(attacker, sets);
         }
-        return true;
+        return randomSetOptions(attacker).size() > 1;
     }
 
     private void addRandomSetSelector(PokemonSet pokemon, int x, int y, int width, boolean attacker) {
-        List<TropimonRandomBattleSets.RandomBattleSet> sets = TropimonRandomBattleSets.setsFor(pokemon.species);
-        int setIndex = Math.floorMod(attacker ? attackerRandomSetIndex : defenderRandomSetIndex, sets.size());
-        TropimonRandomBattleSets.RandomBattleSet activeSet = sets.get(setIndex);
+        List<TropimonRandomBattleSets.RandomBattleSet> sets = randomSetOptions(attacker);
+        int storedIndex = attacker ? attackerRandomSetIndex : defenderRandomSetIndex;
+        boolean manuallySelected = storedIndex >= 0;
+        int setIndex = manuallySelected ? Math.floorMod(storedIndex, sets.size()) : -1;
         ButtonWidget button = addButton(x, y, width,
-                tr("screen.tropimon_damage_calc.random_set", setIndex + 1), pressed -> {
-                    int nextIndex = (setIndex + 1) % sets.size();
+                manuallySelected
+                        ? tr("screen.tropimon_damage_calc.random_set", setIndex + 1)
+                        : tr("screen.tropimon_damage_calc.random_set.unknown"), pressed -> {
+                    int nextIndex = manuallySelected ? (setIndex + 1) % sets.size() : 0;
                     TropimonRandomBattleSets.applySet(pokemon, sets.get(nextIndex));
                     setRandomSetIndex(attacker, nextIndex);
                     updateRandomSetSearchFields(pokemon, attacker);
                     reopen();
                 });
-        button.setTooltip(Tooltip.of(Text.literal(randomSetTooltip(activeSet, setIndex, sets.size()))));
+        if (manuallySelected) {
+            button.setTooltip(Tooltip.of(Text.literal(randomSetTooltip(sets.get(setIndex), setIndex, sets.size()))));
+        } else {
+            button.setTooltip(Tooltip.of(Text.translatable(
+                    "screen.tropimon_damage_calc.random_set.unknown.tooltip", sets.size())));
+        }
     }
 
     private void setRandomSetIndex(boolean attacker, int index) {
         if (attacker) attackerRandomSetIndex = index;
         else defenderRandomSetIndex = index;
+    }
+
+    private List<TropimonRandomBattleSets.RandomBattleSet> randomSetOptions(boolean attacker) {
+        return attacker ? attackerRandomSetOptions : defenderRandomSetOptions;
+    }
+
+    private void setRandomSetOptions(boolean attacker,
+                                     List<TropimonRandomBattleSets.RandomBattleSet> options) {
+        if (attacker) attackerRandomSetOptions = List.copyOf(options);
+        else defenderRandomSetOptions = List.copyOf(options);
     }
 
     private void updateRandomSetSearchFields(PokemonSet pokemon, boolean attacker) {
@@ -393,9 +415,11 @@ public final class DamageCalcScreen extends Screen {
         if (attacker) {
             attackerRandomSetSpecies = "";
             attackerRandomSetIndex = -1;
+            attackerRandomSetOptions = List.of();
         } else {
             defenderRandomSetSpecies = "";
             defenderRandomSetIndex = -1;
+            defenderRandomSetOptions = List.of();
         }
     }
 
