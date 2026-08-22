@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 
 final class CobblemonBattleDataProvider {
     private static final Pattern LEVEL_PATTERN = Pattern.compile("(?i)(?:lv\\.?|lvl\\.?|niveau|nv\\.?)\\s*(\\d{1,3})");
+    private static final Pattern SHOWDOWN_LEVEL_PATTERN = Pattern.compile("(?i)(?:^|[,\\s])l(\\d{1,3})(?:$|[,\\s])");
     private static long nextPartyDebug;
     private static long nextPartyRefresh;
     private static UUID partyCacheOwner;
@@ -799,8 +800,9 @@ final class CobblemonBattleDataProvider {
         }
         randomBattleDetected = isGeneratedRandomTeam(converted.size(), persistentMemberFound);
         TropimonDamageCalcClient.LOGGER.info(
-                "[CalcDBG] random battle detected={} source=generated-team size={} persistentMember={}",
-                randomBattleDetected, converted.size(), persistentMemberFound);
+                "[CalcDBG] random battle detected={} source=generated-team size={} persistentMember={} levels={}",
+                randomBattleDetected, converted.size(), persistentMemberFound,
+                converted.stream().map(pokemon -> pokemon.species.name() + "=" + pokemon.level).toList());
         return randomBattleDetected;
     }
 
@@ -1065,10 +1067,7 @@ final class CobblemonBattleDataProvider {
                 set.moves.add(null);
             }
         }
-        Object level = invokeOptional(battlePokemon, "getLevel");
-        if (level instanceof Number number) {
-            set.level = Math.max(1, Math.min(100, number.intValue()));
-        }
+        set.level = battlePokemonLevel(battlePokemon, set.level);
         Object properties = invokeOptional(battlePokemon, "getProperties");
         applyBattleProperties(set, properties);
         applyBattleRuntime(set, battlePokemon);
@@ -1293,10 +1292,7 @@ final class CobblemonBattleDataProvider {
             set.battleId = uuid.toString();
         }
         set.battleName = displayText(invokeOptional(battlePokemon, "getDisplayName", false));
-        Object level = invokeOptional(battlePokemon, "getLevel");
-        if (level instanceof Number number) {
-            set.level = Math.max(1, Math.min(100, number.intValue()));
-        }
+        set.level = battlePokemonLevel(battlePokemon, set.level);
         Object hp = invokeOptional(battlePokemon, "getHpValue");
         if (hp instanceof Number number && number.floatValue() >= 0) {
             float hpValue = number.floatValue();
@@ -1320,6 +1316,45 @@ final class CobblemonBattleDataProvider {
             set.status = statusCondition(text(invokeOptional(status, "getName")));
         }
         copyStats(invokeOptional(battlePokemon, "getStatChanges"), set.boosts);
+    }
+
+    static int battlePokemonLevel(Object battlePokemon, int fallback) {
+        if (battlePokemon == null) {
+            return clampLevel(fallback);
+        }
+        for (Object source : new Object[] {
+                battlePokemon,
+                invokeOptional(battlePokemon, "getProperties"),
+                invokeOptional(battlePokemon, "getOriginalPokemon"),
+                invokeOptional(battlePokemon, "getEffectedPokemon")}) {
+            if (source == null) {
+                continue;
+            }
+            Object level = invokeOptional(source, "getLevel");
+            if (level instanceof Number number && number.intValue() > 0) {
+                return clampLevel(number.intValue());
+            }
+        }
+        for (String details : List.of(
+                text(invokeOptional(battlePokemon, "getDetails")),
+                displayText(invokeOptional(battlePokemon, "getDisplayName")))) {
+            Matcher matcher = SHOWDOWN_LEVEL_PATTERN.matcher(details);
+            if (matcher.find()) {
+                try {
+                    return clampLevel(Integer.parseInt(matcher.group(1)));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            int parsed = parseLevel(details, -1);
+            if (parsed > 0) {
+                return parsed;
+            }
+        }
+        return clampLevel(fallback);
+    }
+
+    private static int clampLevel(int level) {
+        return Math.max(1, Math.min(100, level));
     }
 
     private static StatusCondition statusCondition(String raw) {
@@ -1784,4 +1819,5 @@ final class CobblemonBattleDataProvider {
 
     private record FieldKey(Class<?> owner, String name) {
     }
+
 }

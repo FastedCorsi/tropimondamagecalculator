@@ -22,6 +22,18 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DamageCalculatorTest {
+    private record TestBattlePokemon(int level) {
+        public int getLevel() {
+            return level;
+        }
+    }
+
+    private record TestBattleDetails(String details) {
+        public String getDetails() {
+            return details;
+        }
+    }
+
     @Test
     void randomBattleOwnedSetIsMatchedFromTheBattleActorByUuid() {
         SpeciesData species = species("randommon", "Randommon", PokeType.DRAGON, PokeType.NONE,
@@ -82,6 +94,7 @@ final class DamageCalculatorTest {
         PokemonSet opponent = new PokemonSet(species("randomenemy", "Random Enemy", PokeType.WATER,
                 PokeType.NONE, 80, 100, 80, 100, 80, 100, false));
         opponent.evs.put(Stat.HP, 252);
+        opponent.level = 80;
         opponent.nature = new NatureData("timid", "Timid", Stat.SPE, Stat.ATK);
         opponent.statsKnown = false;
         opponent.natureKnown = false;
@@ -92,6 +105,7 @@ final class DamageCalculatorTest {
         assertEquals("serious", opponent.nature.id());
         assertTrue(opponent.statsKnown);
         assertTrue(opponent.natureKnown);
+        assertEquals(80, opponent.level);
         assertTrue(CobblemonBattleDataProvider.randomFormatLabel("gen9RandomBattle"));
         assertFalse(CobblemonBattleDataProvider.randomFormatLabel("gen9singles", "standard"));
         assertTrue(CobblemonBattleDataProvider.isRandomBattleQueueMessage(
@@ -105,6 +119,12 @@ final class DamageCalculatorTest {
         assertTrue(CobblemonBattleDataProvider.isGeneratedRandomTeam(6, false));
         assertFalse(CobblemonBattleDataProvider.isGeneratedRandomTeam(6, true));
         assertFalse(CobblemonBattleDataProvider.isGeneratedRandomTeam(5, false));
+    }
+
+    @Test
+    void randomBattleLevelComesFromTheLiveBattlePokemon() {
+        assertEquals(80, CobblemonBattleDataProvider.battlePokemonLevel(new TestBattlePokemon(80), 100));
+        assertEquals(74, CobblemonBattleDataProvider.battlePokemonLevel(new TestBattleDetails("Dragonite, L74"), 100));
     }
 
     @Test
