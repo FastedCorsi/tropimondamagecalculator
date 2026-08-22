@@ -59,6 +59,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
                 CobblemonBattleDataProvider.invalidateRuntimeCaches();
                 CobblemonPokemonProfileRenderer.clearCaches();
                 GameItemIconRenderer.clearCaches();
+                TropimonFrameRenderer.clearCache();
             }
         });
         TropimonDex.load();

@@ -230,14 +230,6 @@ final class TropimonRandomBattleSets {
         return SETS.size();
     }
 
-    static String sourceDescription() {
-        refreshIfChanged();
-        if (sourcePath != null) {
-            return sourcePath.toString();
-        }
-        return bundledSource ? "Bundled Tropimon snapshot" : "None";
-    }
-
     static synchronized void replaceFromReaderForTest(Reader reader) {
         SETS.clear();
         SETS.putAll(parseDocument(reader));

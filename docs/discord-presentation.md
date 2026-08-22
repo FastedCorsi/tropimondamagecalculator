@@ -2,7 +2,7 @@
 
 ## Message prêt à publier
 
-**Tropimon Damage Calculator 0.3.16 est disponible**
+**Tropimon Damage Calculator 0.3.17 est disponible**
 
 Un calculateur de dégâts Cobblemon directement intégré à Minecraft, pensé pour préparer un duel et vérifier rapidement un match-up sans quitter le jeu.
 
@@ -42,4 +42,4 @@ Tropimon Damage Calculator est un projet indépendant et non officiel.
 
 ## Version courte
 
-**Tropimon Damage Calculator 0.3.16** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon et propose un sélecteur `Set N` lorsque plusieurs variantes restent possibles. Le premier set est chargé immédiatement et les doublons sont fusionnés. L'interface compacte utilise les modèles animés, les icônes de type et d'objet ainsi que le grand cadre du navigateur Tropimon avec un fond sombre semi-transparent et de petits cadres cyan autour des portraits. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.
+**Tropimon Damage Calculator 0.3.17** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon et propose un sélecteur `Set N` lorsque plusieurs variantes restent possibles. Le premier set est chargé immédiatement et les doublons sont fusionnés. L'interface compacte utilise les modèles animés, les icônes de type et d'objet ainsi que le grand cadre du navigateur Tropimon avec un fond sombre semi-transparent et de petits cadres cyan autour des portraits. Cette version retire les anciens composants de la vue Détail/VS et fiabilise le rechargement du thème Tropimon. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.

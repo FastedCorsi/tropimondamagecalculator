@@ -27,6 +27,7 @@ final class TropimonFrameRenderer {
             return;
         }
         if (!textureAvailable()) {
+            context.fill(x + 4, y + 4, x + width - 4, y + height - 4, BACKGROUND);
             CobblemonPanelRenderer.drawBorder(context, x, y, width, height);
             return;
         }
@@ -45,6 +46,10 @@ final class TropimonFrameRenderer {
         drawFrame(context, x, y, width, height,
                 COMPACT_HORIZONTAL, COMPACT_HORIZONTAL,
                 COMPACT_VERTICAL, COMPACT_VERTICAL, false);
+    }
+
+    static void clearCache() {
+        textureAvailable = null;
     }
 
     private static void drawFrame(DrawContext context, int x, int y, int width, int height,

@@ -28,18 +28,16 @@ final class CobblemonPokemonProfileRenderer {
     }
 
     static boolean draw(DrawContext context, SpeciesData species, int x, int y, int size) {
-        return draw(context, species, x, y, size, 0.0F, "static");
+        return draw(context, species, x, y, size, false, "static");
     }
 
     static boolean drawAnimated(DrawContext context, SpeciesData species, int x, int y, int size,
-                                float frameDelta, String animationSlot) {
-        // GUI tick deltas can stay at zero while a non-pausing battle screen is layered underneath.
-        // The profile entry computes its real elapsed time, so a positive marker keeps the idle pose advancing.
-        return draw(context, species, x, y, size, 1.0F, animationSlot);
+                                String animationSlot) {
+        return draw(context, species, x, y, size, true, animationSlot);
     }
 
     private static boolean draw(DrawContext context, SpeciesData species, int x, int y, int size,
-                                float frameDelta, String animationSlot) {
+                                boolean animated, String animationSlot) {
         if (unavailable || species == null) {
             return false;
         }
@@ -72,7 +70,7 @@ final class CobblemonPokemonProfileRenderer {
                     rotation,
                     api.renderPose,
                     profile.state,
-                    profile.animationDelta(frameDelta > 0.0F),
+                    profile.animationDelta(animated),
                     20.0F,
                     true,
                     false,

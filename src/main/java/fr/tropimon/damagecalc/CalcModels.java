@@ -131,9 +131,6 @@ record MoveData(String id, String name, PokeType type, DamageCategory category, 
     }
 }
 
-record AbilityData(String name, boolean hidden) {
-}
-
 record BattlePokemonSnapshot(PokemonSet player, PokemonSet opponent, boolean doubles,
                              String playerPartnerAbility, String opponentPartnerAbility,
                              String playerPartnerName, String opponentPartnerName,
@@ -376,17 +373,6 @@ final class FieldState {
     boolean auroraVeil;
     boolean tailwind;
 
-    String summary() {
-        String side = attackerSide.hasAny() || defenderSide.hasAny() || reflect || lightScreen || auroraVeil || tailwind
-                ? " | Sides" : "";
-        return weather.label + " | " + terrain.label + " | " + (doubles ? "Doubles" : "Singles")
-                + (trickRoom ? " | Trick Room" : "") + (gravity ? " | Gravity" : "") + side;
-    }
-
-    SideConditions targetSide(boolean targetIsAttacker) {
-        return targetIsAttacker ? attackerSide : defenderSide;
-    }
-
     SideConditions legacySideConditions() {
         SideConditions side = new SideConditions();
         side.reflect = reflect;
@@ -508,11 +494,8 @@ final class DamageCalcState {
     PokemonSet attacker = new PokemonSet(TropimonDex.species("abomasnow"));
     PokemonSet defender = new PokemonSet(TropimonDex.species("abomasnow"));
     FieldState field = new FieldState();
-    int selectedMoveIndex;
-    boolean selectedMoveAttacker = true;
     String attackerSearch = "";
     String defenderSearch = "";
-    String moveSearch = "";
     String attackerItemSearch = "";
     String defenderItemSearch = "";
     String attackerAbilitySearch = "";
@@ -531,38 +514,6 @@ final class DamageCalcState {
 
     static DamageCalcState shared() {
         return SHARED;
-    }
-
-    MoveData selectedMove() {
-        PokemonSet pokemon = selectedMoveAttacker ? attacker : defender;
-        MoveData move = effectiveMove(pokemon, selectedMoveIndex);
-        if (move == null) {
-            return TropimonDex.move("tackle");
-        }
-        return move;
-    }
-
-    DamageResult calculateSelected() {
-        DamageResult result = calculateMove(selectedMoveAttacker, selectedMoveIndex);
-        if (result != null) {
-            return result;
-        }
-        return selectedMoveAttacker
-                ? DamageCalculator.calculate(attacker, defender, selectedMove(), field, field.attackerSide, field.defenderSide)
-                : DamageCalculator.calculate(defender, attacker, selectedMove(), field, field.defenderSide, field.attackerSide);
-    }
-
-    List<DamageResult> calculateMoves(PokemonSet source, PokemonSet target) {
-        ArrayList<DamageResult> results = new ArrayList<>();
-        SideConditions attackerSide = source == attacker ? field.attackerSide : field.defenderSide;
-        SideConditions targetSide = target == attacker ? field.attackerSide : field.defenderSide;
-        for (MoveData move : source.moves) {
-            if (move != null) {
-                results.add(DamageCalculator.calculate(source, target, move, field, attackerSide, targetSide));
-            }
-        }
-        results.sort((left, right) -> Integer.compare(right.maxDamage(), left.maxDamage()));
-        return results;
     }
 
     DamageResult calculateMove(boolean fromAttacker, int slot) {
@@ -779,8 +730,6 @@ final class DamageCalcState {
         defender = previous;
         field.swapSides();
         syncSearchFieldsFromSets();
-        selectedMoveIndex = 0;
-        selectedMoveAttacker = true;
     }
 
     void syncSearchFieldsFromSets() {
@@ -794,18 +743,6 @@ final class DamageCalcState {
         defenderNatureSearch = defender.natureKnown ? defender.nature.name() : "";
         attackerPartnerAbilitySearch = field.attackerSide.partnerAbility;
         defenderPartnerAbilitySearch = field.defenderSide.partnerAbility;
-    }
-
-    void setAttackerFromLive(PokemonSet live) {
-        attacker = live;
-        selectedMoveIndex = 0;
-    }
-
-    void setDefenderFromLive(PokemonSet live) {
-        PokemonSet hydrated = live.copy();
-        hydrated.moves.clear();
-        hydrated.moves.addAll(defender.moves);
-        defender = hydrated;
     }
 
     void setFromBattle(BattlePokemonSnapshot snapshot) {
@@ -872,8 +809,6 @@ final class DamageCalcState {
             clearDoublesContext(field.attackerSide);
             clearDoublesContext(field.defenderSide);
         }
-        selectedMoveIndex = 0;
-        selectedMoveAttacker = true;
         syncSearchFieldsFromSets();
         attackerPartnerAbilitySearch = field.attackerSide.partnerAbility;
         defenderPartnerAbilitySearch = field.defenderSide.partnerAbility;
@@ -971,11 +906,6 @@ final class DamageCalcState {
     static <T> T cycle(List<T> values, T current) {
         int index = values.indexOf(current);
         return values.get(Math.floorMod(index + 1, values.size()));
-    }
-
-    static <T> T cycleBack(List<T> values, T current) {
-        int index = values.indexOf(current);
-        return values.get(Math.floorMod(index - 1, values.size()));
     }
 
     static void presetEvs(PokemonSet pokemon, EvPreset preset) {

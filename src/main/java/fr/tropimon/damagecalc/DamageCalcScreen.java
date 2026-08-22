@@ -116,13 +116,13 @@ public final class DamageCalcScreen extends Screen {
 
         int moveY = moveY(editorY);
         if (showMoves) {
-            addMoveEditor(state.attacker, state.defender, leftX, moveY, true);
-            addMoveEditor(state.defender, state.attacker, rightX, moveY, false);
+            addMoveEditor(state.attacker, leftX, moveY, true);
+            addMoveEditor(state.defender, rightX, moveY, false);
         }
         renderedDamageFingerprint = state.calculationFingerprint();
     }
 
-    private void addMoveEditor(PokemonSet source, PokemonSet target, int x, int y, boolean fromAttacker) {
+    private void addMoveEditor(PokemonSet source, int x, int y, boolean fromAttacker) {
         for (int slot = 0; slot < 4; slot++) {
             int moveSlot = slot;
             MoveData move = source.moveAt(slot);
@@ -138,9 +138,6 @@ public final class DamageCalcScreen extends Screen {
             ButtonWidget deleteButton = addButton(x + MOVE_DELETE_X, y + slot * MOVE_ROW,
                     MOVE_DELETE_WIDTH, "X", button -> {
                 source.deleteMove(moveSlot);
-                if (state.selectedMoveAttacker == fromAttacker && state.selectedMoveIndex == moveSlot) {
-                    state.selectedMoveIndex = 0;
-                }
                 reopen();
             });
             deleteButton.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.move.delete")));
@@ -150,13 +147,7 @@ public final class DamageCalcScreen extends Screen {
             });
             zButton.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.move.z")));
             ButtonWidget resultButton = addButton(x + MOVE_RESULT_X, y + slot * MOVE_ROW, MOVE_RESULT_WIDTH,
-                    result == null ? "-" : damageRange(result), button -> {
-                if (source.moveAt(moveSlot) != null) {
-                    state.selectedMoveAttacker = fromAttacker;
-                    state.selectedMoveIndex = moveSlot;
-                    reopen();
-                }
-            });
+                    result == null ? "-" : damageRange(result), button -> {});
             if (result != null) {
                 resultButton.setTooltip(Tooltip.of(Text.literal(damageTooltip(result))));
             }
@@ -377,7 +368,6 @@ public final class DamageCalcScreen extends Screen {
                     TropimonRandomBattleSets.applySet(pokemon, sets.get(nextIndex));
                     setRandomSetIndex(attacker, nextIndex);
                     updateRandomSetSearchFields(pokemon, attacker);
-                    state.selectedMoveIndex = 0;
                     reopen();
                 });
         button.setTooltip(Tooltip.of(Text.literal(randomSetTooltip(activeSet, setIndex, sets.size()))));
@@ -536,8 +526,8 @@ public final class DamageCalcScreen extends Screen {
 
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 12, 0xFFFFFF);
         int profileY = editorY;
-        drawPokemonInfo(context, state.attacker, leftX, profileY, delta, "attacker");
-        drawPokemonInfo(context, state.defender, rightX, profileY, delta, "defender");
+        drawPokemonInfo(context, state.attacker, leftX, profileY, "attacker");
+        drawPokemonInfo(context, state.defender, rightX, profileY, "defender");
         boolean showStats = !compactLayout() || compactStatsVisible;
         boolean showMoves = !compactLayout() || !compactStatsVisible;
         if (showStats) {
@@ -611,8 +601,8 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private void drawPokemonInfo(DrawContext context, PokemonSet pokemon, int x, int y,
-                                 float frameDelta, String animationSlot) {
-        drawPokemonTexture(context, pokemon, x, y, frameDelta, animationSlot);
+                                 String animationSlot) {
+        drawPokemonTexture(context, pokemon, x, y, animationSlot);
         drawTypeIcons(context, pokemon.defensiveTypes(), x + 214, y, 18);
     }
 
@@ -629,10 +619,10 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private void drawPokemonTexture(DrawContext context, PokemonSet pokemon, int x, int y,
-                                    float frameDelta, String animationSlot) {
+                                    String animationSlot) {
         TropimonFrameRenderer.drawCompact(context, x, y, 56, 56);
         if (!CobblemonPokemonProfileRenderer.drawAnimated(
-                context, pokemon.species, x + 4, y + 4, 48, frameDelta, animationSlot)) {
+                context, pokemon.species, x + 4, y + 4, 48, animationSlot)) {
             drawTrimmed(context, tr("screen.tropimon_damage_calc.model_unavailable"),
                     x + 6, y + 24, 44, 0xFFB0B0B0);
         }
@@ -989,36 +979,6 @@ public final class DamageCalcScreen extends Screen {
         return applied;
     }
 
-    private boolean applyExactSearchValue(SearchKind kind, String text) {
-        String normalized = TropimonDex.normalize(text);
-        if (normalized.isBlank()) {
-            return false;
-        }
-        boolean applied = switch (kind) {
-            case ATTACKER_POKEMON -> exactSpecies(state.attacker, normalized) ? false : selectExactSpecies(text, true);
-            case DEFENDER_POKEMON -> exactSpecies(state.defender, normalized) ? false : selectExactSpecies(text, false);
-            case ATTACKER_ITEM -> exactText(state.attacker.item, normalized) ? false : selectExactItem(text, true);
-            case DEFENDER_ITEM -> exactText(state.defender.item, normalized) ? false : selectExactItem(text, false);
-            case ATTACKER_ABILITY -> exactText(state.attacker.ability, normalized) ? false : selectExactAbility(text, true);
-            case DEFENDER_ABILITY -> exactText(state.defender.ability, normalized) ? false : selectExactAbility(text, false);
-            case ATTACKER_PARTNER_ABILITY -> exactText(state.field.attackerSide.partnerAbility, normalized)
-                    ? false : selectExactPartnerAbility(text, true);
-            case DEFENDER_PARTNER_ABILITY -> exactText(state.field.defenderSide.partnerAbility, normalized)
-                    ? false : selectExactPartnerAbility(text, false);
-            case ATTACKER_NATURE -> exactText(state.attacker.nature.name(), normalized) ? false : selectExactNature(text, true);
-            case DEFENDER_NATURE -> exactText(state.defender.nature.name(), normalized) ? false : selectExactNature(text, false);
-            case ATTACKER_MOVE_0, ATTACKER_MOVE_1, ATTACKER_MOVE_2, ATTACKER_MOVE_3,
-                 DEFENDER_MOVE_0, DEFENDER_MOVE_1, DEFENDER_MOVE_2, DEFENDER_MOVE_3 ->
-                    exactMove(kind, normalized) ? false : selectExactMove(text, isAttackerMove(kind), moveSlot(kind));
-        };
-        if (applied) {
-            activeKind = null;
-            openKind = null;
-            reopen();
-        }
-        return applied;
-    }
-
     private boolean applySuggestion(Suggestion suggestion) {
         TropimonDamageCalcClient.debug("applySuggestion label=" + suggestion.label);
         suggestion.apply().run();
@@ -1215,7 +1175,6 @@ public final class DamageCalcScreen extends Screen {
             pokemon.item = "None";
         }
         if (attacker) {
-            state.selectedMoveIndex = 0;
             state.attackerSearch = speciesDisplayName(species);
             state.attackerItemSearch = itemDisplayName(pokemon.item);
             state.attackerAbilitySearch = abilityDisplayName(pokemon.ability);
@@ -1243,7 +1202,6 @@ public final class DamageCalcScreen extends Screen {
         }
         if (attacker) {
             state.attacker = copy;
-            state.selectedMoveIndex = 0;
             state.attackerSearch = speciesDisplayName(copy.species);
             state.attackerItemSearch = copy.itemKnown ? itemDisplayName(copy.item) : "";
             state.attackerAbilitySearch = copy.abilityKnown ? abilityDisplayName(copy.ability) : "";
@@ -1266,18 +1224,6 @@ public final class DamageCalcScreen extends Screen {
         return true;
     }
 
-    private boolean selectExactSpecies(String query, boolean attacker) {
-        SpeciesData species = TropimonDex.findSpeciesByQuery(query);
-        String normalized = TropimonDex.normalize(query);
-        if (species == null || !exactText(species.name(), normalized)
-                && !exactText(speciesDisplayName(species), normalized)
-                && !exactText(species.id(), normalized)) {
-            return false;
-        }
-        selectSpecies(species, attacker);
-        return true;
-    }
-
     private void selectItem(String item, boolean attacker) {
         TropimonDamageCalcClient.debug("selectItem side=" + (attacker ? "attacker" : "defender") + " item=" + item);
         if (attacker) {
@@ -1294,16 +1240,6 @@ public final class DamageCalcScreen extends Screen {
     private boolean selectItemByQuery(String query, boolean attacker) {
         String item = TropimonDex.findItemByQuery(query);
         if (item == null) {
-            return false;
-        }
-        selectItem(item, attacker);
-        return true;
-    }
-
-    private boolean selectExactItem(String query, boolean attacker) {
-        String item = TropimonDex.findItemByQuery(query);
-        String normalized = TropimonDex.normalize(query);
-        if (item == null || !exactText(item, normalized) && !exactText(itemDisplayName(item), normalized)) {
             return false;
         }
         selectItem(item, attacker);
@@ -1333,18 +1269,6 @@ public final class DamageCalcScreen extends Screen {
         return true;
     }
 
-    private boolean selectExactAbility(String query, boolean attacker) {
-        PokemonSet pokemon = attacker ? state.attacker : state.defender;
-        String ability = TropimonDex.findAbilityByQuery(pokemon.species, query);
-        String normalized = TropimonDex.normalize(query);
-        if (ability == null || !exactText(ability, normalized)
-                && !exactText(abilityDisplayName(ability), normalized)) {
-            return false;
-        }
-        selectAbility(ability, attacker);
-        return true;
-    }
-
     private void selectPartnerAbility(String ability, boolean attacker) {
         SideConditions side = sideFor(attacker);
         side.partnerAbility = ability;
@@ -1355,17 +1279,6 @@ public final class DamageCalcScreen extends Screen {
     private boolean selectPartnerAbilityByQuery(String query, boolean attacker) {
         String ability = TropimonDex.findAbilityByQuery(query);
         if (ability == null) return false;
-        selectPartnerAbility(ability, attacker);
-        return true;
-    }
-
-    private boolean selectExactPartnerAbility(String query, boolean attacker) {
-        String ability = TropimonDex.findAbilityByQuery(query);
-        String normalized = TropimonDex.normalize(query);
-        if (ability == null || !exactText(ability, normalized)
-                && !exactText(abilityDisplayName(ability), normalized)) {
-            return false;
-        }
         selectPartnerAbility(ability, attacker);
         return true;
     }
@@ -1392,23 +1305,10 @@ public final class DamageCalcScreen extends Screen {
         return true;
     }
 
-    private boolean selectExactNature(String query, boolean attacker) {
-        NatureData nature = TropimonDex.findNatureByQuery(query);
-        String normalized = TropimonDex.normalize(query);
-        if (nature == null || !exactText(nature.name(), normalized)
-                && !exactText(natureDisplayName(nature), normalized)) {
-            return false;
-        }
-        selectNature(nature, attacker);
-        return true;
-    }
-
     private void selectMove(MoveData move, boolean fromAttacker, int slot) {
         TropimonDamageCalcClient.debug("selectMove side=" + (fromAttacker ? "attacker" : "defender") + " slot=" + slot + " move=" + move.name());
         PokemonSet source = fromAttacker ? state.attacker : state.defender;
         source.setMove(slot, move);
-        state.selectedMoveAttacker = fromAttacker;
-        state.selectedMoveIndex = slot;
     }
 
     private boolean clearSelection(SearchKind kind) {
@@ -1486,42 +1386,6 @@ public final class DamageCalcScreen extends Screen {
         return true;
     }
 
-    private boolean selectExactMove(String query, boolean fromAttacker, int slot) {
-        MoveData move = TropimonDex.findMoveByQuery(query);
-        String normalized = TropimonDex.normalize(query);
-        if (move == null || !exactText(move.name(), normalized)
-                && !exactText(moveDisplayName(move), normalized)
-                && !exactText(move.id(), normalized)) {
-            return false;
-        }
-        selectMove(move, fromAttacker, slot);
-        return true;
-    }
-
-    private void setFromTarget(boolean attacker) {
-        PokemonSet live = CobblemonBattleDataProvider.targetPokemon(MinecraftClient.getInstance());
-        if (live == null) return;
-        live.ability = TropimonDex.defaultAbility(live.species);
-        if (attacker) {
-            state.setAttackerFromLive(live);
-            state.attackerSearch = live.species.name();
-            state.attackerAbilitySearch = live.ability;
-        } else {
-            state.setDefenderFromLive(live);
-            state.defenderSearch = live.species.name();
-            state.defenderAbilitySearch = live.ability;
-        }
-        reopen();
-    }
-
-    private void replaceSelectedMove(boolean forward) {
-        List<MoveData> moves = TropimonDex.moveList();
-        if (moves.isEmpty()) return;
-        MoveData current = state.selectedMove();
-        MoveData next = forward ? DamageCalcState.cycle(moves, current) : DamageCalcState.cycleBack(moves, current);
-        selectMove(next, state.selectedMoveAttacker, state.selectedMoveIndex);
-    }
-
     private ButtonWidget addButton(int x, int y, int w, String label, ButtonWidget.PressAction action) {
         return addButton(x, y, w, 20, label, action);
     }
@@ -1594,14 +1458,6 @@ public final class DamageCalcScreen extends Screen {
             }
         });
         addDrawableChild(field);
-    }
-
-    private void openSearch(SearchKind kind) {
-        activeKind = kind;
-        openKind = kind;
-        selectedSuggestion = -1;
-        SearchField field = field(kind);
-        if (field != null) field.widget.setFocused(true);
     }
 
     private SearchField field(SearchKind kind) {
@@ -1944,11 +1800,6 @@ public final class DamageCalcScreen extends Screen {
     private static boolean isAttackerMove(SearchKind kind) {
         return kind == SearchKind.ATTACKER_MOVE_0 || kind == SearchKind.ATTACKER_MOVE_1
                 || kind == SearchKind.ATTACKER_MOVE_2 || kind == SearchKind.ATTACKER_MOVE_3;
-    }
-
-    private static boolean isMoveKind(SearchKind kind) {
-        return isAttackerMove(kind) || kind == SearchKind.DEFENDER_MOVE_0 || kind == SearchKind.DEFENDER_MOVE_1
-                || kind == SearchKind.DEFENDER_MOVE_2 || kind == SearchKind.DEFENDER_MOVE_3;
     }
 
     private static int moveSlot(SearchKind kind) {

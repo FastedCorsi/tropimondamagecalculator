@@ -66,11 +66,6 @@ final class TropimonDex {
         return sortedSpecies;
     }
 
-    static List<MoveData> moveList() {
-        load();
-        return sortedMoves;
-    }
-
     static List<MoveData> moveListFor(SpeciesData species) {
         load();
         ArrayList<MoveData> output = new ArrayList<>(sortedMoves.size());
@@ -203,14 +198,6 @@ final class TropimonDex {
             default -> null;
         };
         return wanted == null ? null : findItemByQuery(wanted);
-    }
-
-    static String dataSourceLabel() {
-        load();
-        if (cobblemonLoaded) {
-            return "Source: BDD Cobblemon (" + SPECIES.size() + " Pokemon, " + MOVES.size() + " attaques, " + items.size() + " objets)";
-        }
-        return "Source: Cobblemon en chargement";
     }
 
     static List<PokeType> teraTypes() {

@@ -3,14 +3,11 @@ package fr.tropimon.damagecalc;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -67,22 +64,6 @@ final class CobblemonBattleDataProvider {
     private static final long RANDOM_BATTLE_QUEUE_TTL_MS = 900_000L;
 
     private CobblemonBattleDataProvider() {
-    }
-
-    static PokemonSet targetPokemon(MinecraftClient client) {
-        Entity entity = targetCobblemonEntity(client);
-        if (entity == null) {
-            return null;
-        }
-        String display = displayName(entity);
-        SpeciesData species = TropimonDex.findSpeciesByDisplayName(display);
-        if (species == null) {
-            return null;
-        }
-        PokemonSet pokemon = new PokemonSet(species);
-        pokemon.level = parseLevel(display, 100);
-        pokemon.currentHp = -1;
-        return pokemon;
     }
 
     static List<PokemonSet> playerParty(MinecraftClient client) {
@@ -790,20 +771,6 @@ final class CobblemonBattleDataProvider {
         return battleCache;
     }
 
-    private static Entity targetCobblemonEntity(MinecraftClient client) {
-        if (client == null || client.crosshairTarget == null || client.crosshairTarget.getType() != HitResult.Type.ENTITY) {
-            return null;
-        }
-        Entity entity = ((EntityHitResult) client.crosshairTarget).getEntity();
-        String namespace = Registries.ENTITY_TYPE.getId(entity.getType()).getNamespace();
-        return namespace.equals("cobblemon") ? entity : null;
-    }
-
-    private static String displayName(Entity entity) {
-        Text text = entity.getDisplayName() == null ? entity.getName() : entity.getDisplayName();
-        return text == null ? "" : text.getString();
-    }
-
     private static int parseLevel(String display, int fallback) {
         Matcher matcher = LEVEL_PATTERN.matcher(display);
         if (!matcher.find()) {
@@ -1067,16 +1034,6 @@ final class CobblemonBattleDataProvider {
         if (side1 != null) sides.add(side1);
         if (side2 != null) sides.add(side2);
         return sides;
-    }
-
-    private static Object firstActivePokemon(Object actor) {
-        ArrayList<Object> active = activePokemon(actor);
-        return active.isEmpty() ? null : active.getFirst();
-    }
-
-    private static Object firstOpponentActivePokemon(Object battle, Object localActor) {
-        ArrayList<Object> active = opponentActivePokemon(battle, localActor);
-        return active.isEmpty() ? null : active.getFirst();
     }
 
     private static ArrayList<Object> activePokemon(Object actor) {

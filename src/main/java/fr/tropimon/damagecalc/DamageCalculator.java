@@ -429,12 +429,6 @@ final class DamageCalculator {
         return 100;
     }
 
-    private static String koChanceRange(int minDamage, int maxDamage, int hp) {
-        int best = Math.max(1, (int) Math.ceil(hp / (double) Math.max(1, maxDamage)));
-        int worst = Math.max(1, (int) Math.ceil(hp / (double) Math.max(1, minDamage)));
-        return best == worst ? "guaranteed " + best + "HKO" : "possible " + best + "-" + worst + "HKO";
-    }
-
     static int stat(PokemonSet pokemon, Stat stat, boolean ignoreBoosts) {
         int value = storedStat(pokemon, stat, ignoreBoosts);
         if (stat != Stat.HP) {
