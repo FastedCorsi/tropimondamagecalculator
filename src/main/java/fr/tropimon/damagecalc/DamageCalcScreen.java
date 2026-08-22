@@ -97,7 +97,7 @@ public final class DamageCalcScreen extends Screen {
         int editorY = editorY();
 
         addFieldEditor(panelX + 14, 28 - verticalScroll, panelW - 28);
-        ButtonWidget closeButton = addButton(panelX + panelW - 24, 10, 18, 18, "X", button -> close());
+        ButtonWidget closeButton = addButton(panelX + panelW - 32, 8, 14, 14, "X", button -> close());
         closeButton.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.close")));
         boolean compact = compactLayout();
         boolean showStats = !compact || compactStatsVisible;
@@ -106,7 +106,7 @@ public final class DamageCalcScreen extends Screen {
         addPokemonEditor(state.defender, rightX, editorY, false, showStats);
 
         if (compact) {
-            addButton(panelX + panelW - 84, 10, 56, 18,
+            addButton(panelX + panelW - 92, 10, 56, 18,
                     tr(compactStatsVisible ? "screen.tropimon_damage_calc.view.moves"
                             : "screen.tropimon_damage_calc.view.stats"), button -> {
                         compactStatsVisible = !compactStatsVisible;
@@ -531,7 +531,7 @@ public final class DamageCalcScreen extends Screen {
         int editorY = editorY();
 
         int moveY = moveY(editorY);
-        int panelBottom = compactLayout() ? height - 2 : Math.min(height - 8, moveY + MOVE_ROW * 4 + 8);
+        int panelBottom = compactLayout() ? height - 2 : Math.min(height - 4, moveY + MOVE_ROW * 4 + 16);
         TropimonFrameRenderer.draw(context, panelX, panelY, panelW, panelBottom - panelY);
 
         context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 12, 0xFFFFFF);
@@ -1629,7 +1629,7 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private int moveY(int editorY) {
-        return Math.min(editorY + (state.field.doubles ? 262 : 240), height - 88);
+        return Math.min(editorY + (state.field.doubles ? 262 : 240), height - 102);
     }
 
     private int leftX(int panelX, int panelW) {

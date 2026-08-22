@@ -14,6 +14,7 @@ final class TropimonFrameRenderer {
     private static final int RIGHT = 16;
     private static final int TOP = 14;
     private static final int BOTTOM = 12;
+    private static final int BACKGROUND = 0x9810171C;
     private static Boolean textureAvailable;
 
     private TropimonFrameRenderer() {
@@ -32,6 +33,8 @@ final class TropimonFrameRenderer {
         int innerHeight = height - TOP - BOTTOM;
         int sourceInnerWidth = TEXTURE_WIDTH - LEFT - RIGHT;
         int sourceInnerHeight = TEXTURE_HEIGHT - TOP - BOTTOM;
+
+        context.fill(x + LEFT, y + TOP, x + width - RIGHT, y + height - BOTTOM, BACKGROUND);
 
         drawPart(context, x + LEFT, y, innerWidth, TOP,
                 LEFT, 0, sourceInnerWidth, TOP);
