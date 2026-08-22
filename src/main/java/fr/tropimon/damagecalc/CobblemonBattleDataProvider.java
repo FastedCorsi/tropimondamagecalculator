@@ -302,6 +302,22 @@ final class CobblemonBattleDataProvider {
                 || System.currentTimeMillis() <= randomBattleQueueExpiresAt;
     }
 
+    static boolean randomBattleActive(MinecraftClient client) {
+        if (client == null || client.player == null) {
+            return false;
+        }
+        try {
+            Object battle = currentBattle(client);
+            if (battle != null) {
+                Object actor = localBattleActor(battle, client.player.getUuid());
+                return actor != null && isRandomBattle(battle, actor, client);
+            }
+            return previewIsCurrent() && randomBattlePreviewExpected();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static void logRandomPreviewCandidate(Object screen) {
         if (!randomBattlePreviewExpected() || screen == null || screen == loggedRandomPreviewCandidate) {
             return;

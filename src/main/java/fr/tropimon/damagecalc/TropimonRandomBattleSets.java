@@ -158,6 +158,32 @@ final class TropimonRandomBattleSets {
         return candidates.size();
     }
 
+    static void applySet(PokemonSet pokemon, RandomBattleSet set) {
+        if (pokemon == null || set == null) {
+            return;
+        }
+        pokemon.level = Math.max(1, Math.min(100, set.level()));
+        String item = TropimonDex.findItemByQuery(set.itemId());
+        pokemon.item = item == null ? prettyIdentifier(set.itemId()) : item;
+        pokemon.itemKnown = true;
+        String ability = TropimonDex.findAbilityByQuery(pokemon.species, set.abilityId());
+        pokemon.ability = ability == null ? prettyIdentifier(set.abilityId()) : ability;
+        pokemon.abilityKnown = true;
+        pokemon.teraType = PokeType.byName(set.teraTypeId());
+        pokemon.moves.clear();
+        for (String moveId : set.moveIds()) {
+            MoveData move = TropimonDex.findMoveByQuery(moveId);
+            if (move != null && pokemon.moves.size() < 4) {
+                pokemon.moves.add(move);
+            }
+        }
+        while (pokemon.moves.size() < 4) {
+            pokemon.moves.add(null);
+        }
+        pokemon.movesKnown = pokemon.moves.stream().anyMatch(java.util.Objects::nonNull);
+        java.util.Arrays.fill(pokemon.zMoves, false);
+    }
+
     static List<RandomBattleSet> matchingSets(PokemonSet pokemon) {
         if (pokemon == null) {
             return List.of();

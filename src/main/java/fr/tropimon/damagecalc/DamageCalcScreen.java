@@ -49,6 +49,10 @@ public final class DamageCalcScreen extends Screen {
     private boolean compactStatsVisible;
     private boolean battleRefreshPending;
     private int verticalScroll;
+    private String attackerRandomSetSpecies = "";
+    private String defenderRandomSetSpecies = "";
+    private int attackerNextRandomSet = -1;
+    private int defenderNextRandomSet = -1;
 
     public DamageCalcScreen(DamageCalcState state) {
         super(Text.translatable("screen.tropimon_damage_calc.title"));
@@ -174,6 +178,7 @@ public final class DamageCalcScreen extends Screen {
                     if (attacker) state.attackerSearch = value;
                     else state.defenderSearch = value;
                 });
+        addRandomSetSelector(pokemon, x, y, attacker);
         addClearButton(x + PANEL - 22, y, pokemonKind);
 
         String itemSearch = attacker ? state.attackerItemSearch : state.defenderItemSearch;
@@ -315,6 +320,73 @@ public final class DamageCalcScreen extends Screen {
             reopen();
         });
         spdPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.spd")));
+    }
+
+    private void addRandomSetSelector(PokemonSet pokemon, int x, int y, boolean attacker) {
+        if (!CobblemonBattleDataProvider.randomBattleActive(MinecraftClient.getInstance())) {
+            resetRandomSetSelector(attacker);
+            return;
+        }
+        List<TropimonRandomBattleSets.RandomBattleSet> sets = TropimonRandomBattleSets.setsFor(pokemon.species);
+        if (sets.size() < 2) {
+            resetRandomSetSelector(attacker);
+            return;
+        }
+        String speciesId = pokemon.species.id();
+        if (!speciesId.equals(attacker ? attackerRandomSetSpecies : defenderRandomSetSpecies)) {
+            if (attacker) {
+                attackerRandomSetSpecies = speciesId;
+                attackerNextRandomSet = -1;
+            } else {
+                defenderRandomSetSpecies = speciesId;
+                defenderNextRandomSet = -1;
+            }
+        }
+        int storedIndex = attacker ? attackerNextRandomSet : defenderNextRandomSet;
+        int candidates = TropimonRandomBattleSets.matchingSets(pokemon).size();
+        if (candidates == 1 && storedIndex < 0) {
+            return;
+        }
+        int setIndex = storedIndex < 0 ? 0 : Math.floorMod(storedIndex, sets.size());
+        TropimonRandomBattleSets.RandomBattleSet set = sets.get(setIndex);
+        ButtonWidget button = addButton(x + 230, y, 46,
+                tr("screen.tropimon_damage_calc.random_set", setIndex + 1), pressed -> {
+                    TropimonRandomBattleSets.applySet(pokemon, set);
+                    if (attacker) {
+                        attackerNextRandomSet = (setIndex + 1) % sets.size();
+                        state.attackerItemSearch = itemDisplayName(pokemon.item);
+                        state.attackerAbilitySearch = abilityDisplayName(pokemon.ability);
+                    } else {
+                        defenderNextRandomSet = (setIndex + 1) % sets.size();
+                        state.defenderItemSearch = itemDisplayName(pokemon.item);
+                        state.defenderAbilitySearch = abilityDisplayName(pokemon.ability);
+                    }
+                    state.selectedMoveIndex = 0;
+                    reopen();
+                });
+        button.setTooltip(Tooltip.of(Text.literal(randomSetTooltip(set, setIndex, sets.size()))));
+    }
+
+    private void resetRandomSetSelector(boolean attacker) {
+        if (attacker) {
+            attackerRandomSetSpecies = "";
+            attackerNextRandomSet = -1;
+        } else {
+            defenderRandomSetSpecies = "";
+            defenderNextRandomSet = -1;
+        }
+    }
+
+    private String randomSetTooltip(TropimonRandomBattleSets.RandomBattleSet set, int index, int count) {
+        String item = itemDisplayName(set.itemId());
+        String ability = abilityDisplayName(set.abilityId());
+        String moves = set.moveIds().stream()
+                .map(TropimonDex::findMoveByQuery)
+                .filter(java.util.Objects::nonNull)
+                .map(DamageCalcScreen::moveDisplayName)
+                .collect(java.util.stream.Collectors.joining(", "));
+        return tr("screen.tropimon_damage_calc.random_set.tooltip",
+                index + 1, count, item, ability, moves);
     }
 
     private void addSideConditionsEditor(SideConditions side, int x, int y) {

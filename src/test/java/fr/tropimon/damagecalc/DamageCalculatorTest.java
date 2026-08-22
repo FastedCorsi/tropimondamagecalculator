@@ -177,6 +177,11 @@ final class DamageCalculatorTest {
         assertTrue(unresolved.itemKnown);
         assertEquals(List.of("swordsdance", "playrough", "suckerpunch", "stoneedge"),
                 TropimonRandomBattleSets.matchingSets(unresolved).getFirst().moveIds());
+
+        TropimonRandomBattleSets.applySet(unresolved, absol.get(1));
+        assertEquals("lifeorb", TropimonDex.normalize(unresolved.item));
+        assertEquals("Justified", unresolved.ability);
+        assertEquals(4, unresolved.moves.size());
     }
 
     @Test
@@ -194,6 +199,7 @@ final class DamageCalculatorTest {
         assertTrue(absol.stream().anyMatch(set -> set.level() == 82
                 && set.itemId().equals("leftovers")
                 && set.moveIds().equals(List.of("swordsdance", "playrough", "suckerpunch", "stoneedge"))));
+        assertTrue(TropimonRandomBattleSets.setsFor("kingdra").size() > 3);
     }
 
     @Test

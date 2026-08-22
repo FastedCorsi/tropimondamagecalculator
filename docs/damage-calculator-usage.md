@@ -2,11 +2,13 @@
 
 ## Installation
 
-Placez le JAR `tropimon-damage-calc-0.3.8.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
+Placez le JAR `tropimon-damage-calc-0.3.9.jar` dans le dossier `mods` du client Fabric 1.21.1 qui contient Cobblemon 1.7.2.
 
 Les sets Random Battle sont d'abord lus depuis `tropimon-random-battle-sets.json` ou `tropimon.json` lorsqu'un de ces fichiers est installé par le jeu ou par un mod Tropimon. Le calculateur vérifie ces fichiers toutes les cinq secondes et les recharge automatiquement après une mise à jour. Si aucun fichier du jeu n'existe, il utilise la copie Tropimon incluse dans son JAR. Aucune API externe n'est appelée en jeu.
 
 Lorsqu'un Pokémon possède plusieurs sets Random Battle, le calculateur compare le niveau, l'objet, le talent, le type Tera et les attaques du Pokémon live. Pour l'adversaire, les variantes sont éliminées à mesure que ses informations sont révélées ; les éléments communs sont préremplis immédiatement et le set complet ne l'est que lorsqu'une seule variante reste possible.
+
+Pendant une Random Battle, un bouton `Set N` apparaît pour un Pokémon dont plusieurs variantes restent possibles. Chaque clic applique la variante affichée et propose automatiquement la suivante. Le survol indique le nombre total de sets ainsi que l'objet, le talent et les quatre attaques de la variante.
 
 ## Ouvrir le calculateur
 

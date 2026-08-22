@@ -2,7 +2,7 @@
 
 ## Message prêt à publier
 
-**Tropimon Damage Calculator 0.3.8 est disponible**
+**Tropimon Damage Calculator 0.3.9 est disponible**
 
 Un calculateur de dégâts Cobblemon directement intégré à Minecraft, pensé pour préparer un duel et vérifier rapidement un match-up sans quitter le jeu.
 
@@ -42,4 +42,4 @@ Tropimon Damage Calculator est un projet indépendant et non officiel.
 
 ## Version courte
 
-**Tropimon Damage Calculator 0.3.8** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon pour compléter le set dès qu'une seule variante reste possible. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.
+**Tropimon Damage Calculator 0.3.9** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon et propose un sélecteur `Set N` lorsque plusieurs variantes restent possibles. Les fichiers du jeu sont prioritaires et rechargés automatiquement après une mise à jour ; une copie embarquée reste disponible si le client ne contient pas encore le fichier. Aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.

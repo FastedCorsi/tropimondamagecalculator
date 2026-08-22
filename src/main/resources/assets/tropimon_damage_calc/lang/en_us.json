@@ -114,5 +114,7 @@
   "diagnostic.tropimon_damage_calc.mixins": "[TropiCalc] Hooks: battle UI=%s | messages=%s",
   "result.tropimon_damage_calc.ko.survives": "survives at 1 HP",
   "screen.tropimon_damage_calc.model_unavailable": "Model ?",
-  "result.tropimon_damage_calc.no_damage": "No damage"
+  "result.tropimon_damage_calc.no_damage": "No damage",
+  "screen.tropimon_damage_calc.random_set": "Set %s",
+  "screen.tropimon_damage_calc.random_set.tooltip": "Set %s/%s | Item: %s | Ability: %s | Moves: %s"
 }
