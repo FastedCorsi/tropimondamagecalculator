@@ -152,6 +152,30 @@ final class DamageCalculatorTest {
                 && set.moveIds().contains("swordsdance")
                 && set.weight() == 250));
         assertEquals(List.of("transform"), TropimonRandomBattleSets.setsFor("ditto").getFirst().moveIds());
+
+        PokemonSet unresolved = new PokemonSet(species("absol", "Absol", PokeType.DARK, PokeType.NONE,
+                65, 130, 60, 75, 60, 75, false));
+        unresolved.level = 82;
+        unresolved.item = "None";
+        unresolved.itemKnown = false;
+        unresolved.ability = "None";
+        unresolved.abilityKnown = false;
+        unresolved.moves.clear();
+        while (unresolved.moves.size() < 4) unresolved.moves.add(null);
+        unresolved.movesKnown = false;
+        assertEquals(2, TropimonRandomBattleSets.applyInference(unresolved));
+        assertFalse(unresolved.itemKnown);
+        assertEquals("Justified", unresolved.ability);
+        assertTrue(unresolved.abilityKnown);
+
+        MoveData swordsDance = move("swordsdance", "Swords Dance", PokeType.NORMAL,
+                DamageCategory.STATUS, 0, false);
+        unresolved.setMove(0, swordsDance);
+        assertEquals(1, TropimonRandomBattleSets.applyInference(unresolved));
+        assertEquals("Leftovers", unresolved.item);
+        assertTrue(unresolved.itemKnown);
+        assertEquals(List.of("swordsdance", "playrough", "suckerpunch", "stoneedge"),
+                TropimonRandomBattleSets.matchingSets(unresolved).getFirst().moveIds());
     }
 
     @Test

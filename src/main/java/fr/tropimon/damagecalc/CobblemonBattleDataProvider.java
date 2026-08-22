@@ -118,6 +118,11 @@ final class CobblemonBattleDataProvider {
                 }
                 debugParty("party loaded count=" + output.size() + " source=storage " + className(storage));
             }
+            if (battle != null && actor != null && isRandomBattle(battle, actor, client)) {
+                for (PokemonSet pokemon : output) {
+                    TropimonRandomBattleSets.applyInference(pokemon);
+                }
+            }
         } catch (Throwable ignored) {
             debugParty("party load failed: " + ignored.getClass().getSimpleName() + " " + ignored.getMessage());
         }
@@ -162,6 +167,7 @@ final class CobblemonBattleDataProvider {
             if (randomTemplate != null) {
                 for (PokemonSet opponent : opponentRoster.values()) {
                     applyRandomBattleOpponentRules(randomTemplate, opponent);
+                    TropimonRandomBattleSets.applyInference(opponent);
                 }
             }
             return copyParty(new ArrayList<>(opponentRoster.values()));
@@ -423,6 +429,9 @@ final class CobblemonBattleDataProvider {
         if (pokemon == null) {
             return;
         }
+        if (Boolean.TRUE.equals(randomBattleDetected)) {
+            TropimonRandomBattleSets.applyInference(pokemon);
+        }
         String key = opponentKey(pokemon);
         PokemonSet existing = opponentRoster.get(key);
         if (existing == null && !pokemon.battleId.isBlank()) {
@@ -584,6 +593,10 @@ final class CobblemonBattleDataProvider {
             if (randomBattle) {
                 applyRandomBattleOpponentRules(player, opponent);
                 applyRandomBattleOpponentRules(player, opponentPartner);
+                TropimonRandomBattleSets.applyInference(player);
+                TropimonRandomBattleSets.applyInference(playerPartner);
+                TropimonRandomBattleSets.applyInference(opponent);
+                TropimonRandomBattleSets.applyInference(opponentPartner);
             }
             resetOpponentRosterIfBattleChanged(battle);
             rememberOpponent(opponent);

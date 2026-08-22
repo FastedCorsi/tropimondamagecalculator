@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 /** Tropimon Random Battle sets discovered in the installed game files. */
@@ -108,6 +109,78 @@ final class TropimonRandomBattleSets {
             }
         }
         return Math.max(1, Math.min(100, selectedLevel));
+    }
+
+    static int applyInference(PokemonSet pokemon) {
+        List<RandomBattleSet> candidates = matchingSets(pokemon);
+        if (pokemon == null || candidates.isEmpty()) {
+            return 0;
+        }
+        String commonItem = commonValue(candidates, RandomBattleSet::itemId);
+        if (!pokemon.itemKnown && commonItem != null) {
+            String item = TropimonDex.findItemByQuery(commonItem);
+            pokemon.item = item == null ? prettyIdentifier(commonItem) : item;
+            pokemon.itemKnown = true;
+        }
+        String commonAbility = commonValue(candidates, RandomBattleSet::abilityId);
+        if (!pokemon.abilityKnown && commonAbility != null) {
+            String ability = TropimonDex.findAbilityByQuery(pokemon.species, commonAbility);
+            pokemon.ability = ability == null ? prettyIdentifier(commonAbility) : ability;
+            pokemon.abilityKnown = true;
+        }
+        String commonTera = commonValue(candidates, RandomBattleSet::teraTypeId);
+        if (pokemon.teraType == PokeType.NONE && commonTera != null) {
+            pokemon.teraType = PokeType.byName(commonTera);
+        }
+        List<String> inferredMoves = commonMoves(candidates);
+        for (String moveId : inferredMoves) {
+            MoveData move = TropimonDex.findMoveByQuery(moveId);
+            if (move != null) {
+                addMoveIfMissing(pokemon, move);
+            }
+        }
+        return candidates.size();
+    }
+
+    static List<RandomBattleSet> matchingSets(PokemonSet pokemon) {
+        if (pokemon == null) {
+            return List.of();
+        }
+        List<RandomBattleSet> candidates = new ArrayList<>(setsFor(pokemon.species));
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+        if (pokemon.level > 0) {
+            candidates = filter(candidates, set -> set.level() == pokemon.level);
+        }
+        String item = TropimonDex.normalize(pokemon.item);
+        if (pokemon.itemKnown && !item.isBlank() && !item.equals("none")) {
+            candidates = filter(candidates, set -> TropimonDex.normalize(set.itemId()).equals(item));
+        }
+        String ability = TropimonDex.normalize(pokemon.ability);
+        if (pokemon.abilityKnown && !ability.isBlank() && !ability.equals("none")) {
+            candidates = filter(candidates, set -> TropimonDex.normalize(set.abilityId()).equals(ability));
+        }
+        Set<String> knownMoves = new HashSet<>();
+        for (MoveData move : pokemon.moves) {
+            if (move != null) {
+                knownMoves.add(TropimonDex.normalize(move.id()));
+            }
+        }
+        if (!knownMoves.isEmpty()) {
+            candidates = filter(candidates, set -> {
+                Set<String> setMoves = new HashSet<>();
+                for (String moveId : set.moveIds()) {
+                    setMoves.add(TropimonDex.normalize(moveId));
+                }
+                return setMoves.containsAll(knownMoves);
+            });
+        }
+        if (pokemon.teraType != PokeType.NONE) {
+            candidates = filter(candidates,
+                    set -> PokeType.byName(set.teraTypeId()) == pokemon.teraType);
+        }
+        return List.copyOf(candidates);
     }
 
     static int speciesCount() {
@@ -219,6 +292,79 @@ final class TropimonRandomBattleSets {
             return Map.of();
         }
         return output;
+    }
+
+    private static List<RandomBattleSet> filter(List<RandomBattleSet> source,
+                                                 java.util.function.Predicate<RandomBattleSet> predicate) {
+        return source.stream().filter(predicate).toList();
+    }
+
+    private static String commonValue(List<RandomBattleSet> sets,
+                                      Function<RandomBattleSet, String> getter) {
+        if (sets.isEmpty()) {
+            return null;
+        }
+        String first = getter.apply(sets.getFirst());
+        String normalized = TropimonDex.normalize(first);
+        for (int index = 1; index < sets.size(); index++) {
+            if (!TropimonDex.normalize(getter.apply(sets.get(index))).equals(normalized)) {
+                return null;
+            }
+        }
+        return first;
+    }
+
+    private static List<String> commonMoves(List<RandomBattleSet> sets) {
+        if (sets.isEmpty()) {
+            return List.of();
+        }
+        ArrayList<String> common = new ArrayList<>(sets.getFirst().moveIds());
+        for (int index = 1; index < sets.size(); index++) {
+            Set<String> candidateMoves = new HashSet<>();
+            for (String move : sets.get(index).moveIds()) {
+                candidateMoves.add(TropimonDex.normalize(move));
+            }
+            common.removeIf(move -> !candidateMoves.contains(TropimonDex.normalize(move)));
+        }
+        return List.copyOf(common);
+    }
+
+    private static void addMoveIfMissing(PokemonSet pokemon, MoveData move) {
+        for (MoveData known : pokemon.moves) {
+            if (known != null && known.id().equals(move.id())) {
+                return;
+            }
+        }
+        for (int slot = 0; slot < pokemon.moves.size(); slot++) {
+            if (pokemon.moves.get(slot) == null) {
+                pokemon.moves.set(slot, move);
+                pokemon.movesKnown = true;
+                return;
+            }
+        }
+        if (pokemon.moves.size() < 4) {
+            pokemon.moves.add(move);
+            pokemon.movesKnown = true;
+        }
+    }
+
+    private static String prettyIdentifier(String id) {
+        String spaced = id == null ? "" : id.replace('_', ' ').replace('-', ' ').trim();
+        if (spaced.isBlank()) {
+            return "None";
+        }
+        StringBuilder output = new StringBuilder(spaced.length());
+        boolean upper = true;
+        for (char character : spaced.toCharArray()) {
+            if (character == ' ') {
+                output.append(character);
+                upper = true;
+            } else {
+                output.append(upper ? Character.toUpperCase(character) : character);
+                upper = false;
+            }
+        }
+        return output.toString();
     }
 
     private static RandomBattleSet parse(String encodedSet, JsonElement weightElement) {
