@@ -43,6 +43,7 @@ public final class DamageCalcScreen extends Screen {
     private final ArrayList<ActiveButton> activeButtons = new ArrayList<>();
     private final EnumMap<SearchKind, CachedSuggestions> suggestionCache = new EnumMap<>(SearchKind.class);
     private final ButtonWidget[][] damageButtons = new ButtonWidget[2][4];
+    private ButtonWidget closeButton;
     private long renderedDamageFingerprint = Long.MIN_VALUE;
     private SearchKind activeKind;
     private SearchKind openKind;
@@ -97,7 +98,7 @@ public final class DamageCalcScreen extends Screen {
         int editorY = editorY();
 
         addFieldEditor(panelX + 14, 28 - verticalScroll, panelW - 28);
-        ButtonWidget closeButton = addButton(panelX + panelW - 32, 8, 14, 14, "X", button -> close());
+        closeButton = addButton(panelX + panelW - 14, 10, 12, 12, "X", button -> close());
         closeButton.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.close")));
         boolean compact = compactLayout();
         boolean showStats = !compact || compactStatsVisible;
@@ -544,6 +545,7 @@ public final class DamageCalcScreen extends Screen {
         refreshDamageButtons();
 
         super.render(context, mouseX, mouseY, delta);
+        drawCloseButtonHover(context);
         drawActiveButtons(context);
         if (showMoves) {
             drawActiveZMoveButtons(context, leftX, rightX, moveY);
@@ -579,6 +581,18 @@ public final class DamageCalcScreen extends Screen {
             context.drawBorder(button.x, button.y, button.w, 20, 0xFF70FF72);
             context.drawCenteredTextWithShadow(textRenderer, button.label, button.x + button.w / 2, button.y + 6, 0xFFFFFFFF);
         }
+    }
+
+    private void drawCloseButtonHover(DrawContext context) {
+        if (closeButton == null || (!closeButton.isHovered() && !closeButton.isFocused())) {
+            return;
+        }
+        int x = closeButton.getX();
+        int y = closeButton.getY();
+        context.fill(x, y, x + closeButton.getWidth(), y + closeButton.getHeight(), 0xE0A51F28);
+        context.drawBorder(x, y, closeButton.getWidth(), closeButton.getHeight(), 0xFFFF6B72);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("X"),
+                x + closeButton.getWidth() / 2, y + 2, 0xFFFFFFFF);
     }
 
     private void drawActiveZMoveButtons(DrawContext context, int leftX, int rightX, int moveY) {
