@@ -303,22 +303,22 @@ public final class DamageCalcScreen extends Screen {
                 reopen();
             });
         }
-        ButtonWidget atkPreset = addButton(x + 188, statY, 92, "Atk", button -> {
+        ButtonWidget atkPreset = addButton(x + 208, statY, 72, 18, "Atk", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.ATK);
             reopen();
         });
         atkPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.atk")));
-        ButtonWidget spaPreset = addButton(x + 188, statY + 28, 92, "SpA", button -> {
+        ButtonWidget spaPreset = addButton(x + 208, statY + 28, 72, 18, "SpA", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.SPA);
             reopen();
         });
         spaPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.spa")));
-        ButtonWidget defPreset = addButton(x + 188, statY + 56, 92, "Def", button -> {
+        ButtonWidget defPreset = addButton(x + 208, statY + 56, 72, 18, "Def", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.DEF);
             reopen();
         });
         defPreset.setTooltip(Tooltip.of(Text.translatable("screen.tropimon_damage_calc.preset.def")));
-        ButtonWidget spdPreset = addButton(x + 188, statY + 84, 92, "SpD", button -> {
+        ButtonWidget spdPreset = addButton(x + 208, statY + 84, 72, 18, "SpD", button -> {
             DamageCalcState.presetEvs(pokemon, EvPreset.SPD);
             reopen();
         });
@@ -538,8 +538,8 @@ public final class DamageCalcScreen extends Screen {
             drawStatTotals(context, state.defender, state.field.defenderSide, rightX, editorY + 120 + statOffset);
         }
         if (showMoves) {
-            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", state.defender.species.name()), leftX, moveY - 14, PANEL, 0xFFFFFF55);
-            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", state.attacker.species.name()), rightX, moveY - 14, PANEL, 0xFFFFFF55);
+            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", state.defender.species.name()), leftX, moveY - 11, PANEL, 0xFFFFFF55);
+            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", state.attacker.species.name()), rightX, moveY - 11, PANEL, 0xFFFFFF55);
         }
         refreshDamageButtons();
 
@@ -639,11 +639,12 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private void drawStatHeaders(DrawContext context, int x, int y) {
-        drawTrimmed(context, "Stat", x, y, 32, 0xFFBEEBC9);
-        drawTrimmed(context, "EV", x + 36, y, 28, 0xFFBEEBC9);
-        drawTrimmed(context, "IV", x + 68, y, 28, 0xFFBEEBC9);
-        drawTrimmed(context, "Boost", x + 100, y, 42, 0xFFBEEBC9);
-        drawTrimmed(context, "Total", x + 146, y, 48, 0xFFBEEBC9);
+        int color = 0xFFBEEBC9;
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Stat"), x + 16, y, color);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("EV"), x + 50, y, color);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("IV"), x + 82, y, color);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Boost"), x + 121, y, color);
+        context.drawCenteredTextWithShadow(textRenderer, Text.literal("Total"), x + 170, y, color);
     }
 
     private void drawStatTotals(DrawContext context, PokemonSet pokemon, SideConditions side, int x, int y) {
