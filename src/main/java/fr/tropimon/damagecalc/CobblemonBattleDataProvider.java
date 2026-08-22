@@ -48,10 +48,14 @@ final class CobblemonBattleDataProvider {
     private static final LinkedHashMap<String, PokemonSet> opponentRoster = new LinkedHashMap<>();
     private static final LinkedHashMap<String, PokemonSet> previewPlayerRoster = new LinkedHashMap<>();
     private static final LinkedHashMap<String, PokemonSet> previewOpponentRoster = new LinkedHashMap<>();
+    private static final LinkedHashMap<String, PokemonSet> previewOpponentFullRoster = new LinkedHashMap<>();
+    private static final Set<String> exactRandomOpponentKeys = new HashSet<>();
     private static Object capturedPreviewScreen;
     private static Object capturedPreviewInformation;
     private static Object loggedPreviewScreen;
     private static long previewOpponentRosterExpiresAt;
+    private static long previewOpponentFullRosterExpiresAt;
+    private static Object exactRandomPreviewBattle;
     private static final long TEAM_PREVIEW_TTL_MS = 600_000L;
     private static Object loggedOpponentRosterBattle;
     private static int loggedOpponentRosterSize = -1;
@@ -165,9 +169,12 @@ final class CobblemonBattleDataProvider {
             logOpponentRosterSize(battle, "battle actor");
             PokemonSet randomTemplate = randomBattlePlayerTemplate(battle, localActor, client);
             if (randomTemplate != null) {
+                attachFullRandomPreviewRoster(battle);
                 for (PokemonSet opponent : opponentRoster.values()) {
-                    applyRandomBattleOpponentRules(randomTemplate, opponent);
-                    TropimonRandomBattleSets.applyInference(opponent);
+                    if (!hasExactRandomOpponent(opponent)) {
+                        applyRandomBattleOpponentRules(randomTemplate, opponent);
+                        TropimonRandomBattleSets.applyInference(opponent);
+                    }
                 }
             }
             return copyParty(new ArrayList<>(opponentRoster.values()));
@@ -188,12 +195,16 @@ final class CobblemonBattleDataProvider {
         if (screen == capturedPreviewScreen && information == capturedPreviewInformation
                 && (!previewPlayerRoster.isEmpty() || !previewOpponentRoster.isEmpty())) {
             previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+            if (!previewOpponentFullRoster.isEmpty()) {
+                previewOpponentFullRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+            }
             return;
         }
         LinkedHashMap<String, PokemonSet> capturedPlayers = decodedPreviewRoster(
                 invokeOptional(information, "getPlayerParty"), false);
-        LinkedHashMap<String, PokemonSet> capturedOpponents = decodedPreviewRoster(
-                invokeOptional(information, "getOpponentParty"), true);
+        LinkedHashMap<String, PokemonSet> capturedFullOpponents = decodedPreviewRoster(
+                invokeOptional(information, "getOpponentParty"), false);
+        LinkedHashMap<String, PokemonSet> capturedOpponents = hiddenPreviewRoster(capturedFullOpponents);
         if (capturedPlayers.isEmpty() && capturedOpponents.isEmpty()) {
             return;
         }
@@ -203,9 +214,20 @@ final class CobblemonBattleDataProvider {
         previewPlayerRoster.putAll(capturedPlayers);
         previewOpponentRoster.clear();
         previewOpponentRoster.putAll(capturedOpponents);
+        previewOpponentFullRoster.clear();
+        previewOpponentFullRoster.putAll(capturedFullOpponents);
         previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+        previewOpponentFullRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
         TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source={} players={} opponents={}",
                 className(screen), capturedPlayers.size(), capturedOpponents.size());
+    }
+
+    private static LinkedHashMap<String, PokemonSet> hiddenPreviewRoster(Map<String, PokemonSet> fullRoster) {
+        LinkedHashMap<String, PokemonSet> hidden = new LinkedHashMap<>();
+        for (Map.Entry<String, PokemonSet> entry : fullRoster.entrySet()) {
+            hidden.put(entry.getKey(), hideOpponentPrivateData(entry.getValue()));
+        }
+        return hidden;
     }
 
     private static LinkedHashMap<String, PokemonSet> decodedPreviewRoster(Object party, boolean hidePrivateData) {
@@ -258,6 +280,8 @@ final class CobblemonBattleDataProvider {
         previewPlayerRoster.putAll(capturedPlayers);
         previewOpponentRoster.clear();
         previewOpponentRoster.putAll(capturedOpponents);
+        previewOpponentFullRoster.clear();
+        previewOpponentFullRosterExpiresAt = 0L;
         previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
         TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source=inventory players={} opponents={}",
                 capturedPlayers.size(), capturedOpponents.size());
@@ -434,11 +458,13 @@ final class CobblemonBattleDataProvider {
         }
         String key = opponentKey(pokemon);
         PokemonSet existing = opponentRoster.get(key);
+        boolean existingWasExact = exactRandomOpponentKeys.contains(key);
         if (existing == null && !pokemon.battleId.isBlank()) {
             String anonymousKey = matchingAnonymousOpponentKey(opponentRoster, pokemon);
             if (anonymousKey != null) {
                 existing = opponentRoster.get(anonymousKey);
                 opponentRoster.remove(anonymousKey);
+                existingWasExact = exactRandomOpponentKeys.remove(anonymousKey);
                 if (!existing.species.id().equals(pokemon.species.id())) {
                     TropimonDamageCalcClient.LOGGER.info(
                             "[CalcDBG] opponent form reconciled preview={} active={} battleId={}",
@@ -464,8 +490,18 @@ final class CobblemonBattleDataProvider {
             merged.nature = existing.nature;
             merged.natureKnown = true;
         }
+        if (!pokemon.statsKnown && existing.statsKnown) {
+            merged.evs.clear();
+            merged.evs.putAll(existing.evs);
+            merged.ivs.clear();
+            merged.ivs.putAll(existing.ivs);
+            merged.statsKnown = true;
+        }
         mergeKnownMoves(merged, existing);
         opponentRoster.put(key, merged);
+        if (existingWasExact) {
+            exactRandomOpponentKeys.add(key);
+        }
     }
 
     static String matchingAnonymousOpponentKey(Map<String, PokemonSet> roster, PokemonSet pokemon) {
@@ -551,6 +587,8 @@ final class CobblemonBattleDataProvider {
     private static void clearOpponentRoster(Object battle) {
         opponentRosterBattle = battle;
         opponentRoster.clear();
+        exactRandomOpponentKeys.clear();
+        exactRandomPreviewBattle = null;
         loggedOpponentRosterBattle = null;
         loggedOpponentRosterSize = -1;
         if (battle != null && previewIsCurrent()) {
@@ -569,6 +607,32 @@ final class CobblemonBattleDataProvider {
         return !previewOpponentRoster.isEmpty() && System.currentTimeMillis() <= previewOpponentRosterExpiresAt;
     }
 
+    private static void attachFullRandomPreviewRoster(Object battle) {
+        if (battle == null || !Boolean.TRUE.equals(randomBattleDetected)
+                || exactRandomPreviewBattle == battle || previewOpponentFullRoster.isEmpty()) {
+            return;
+        }
+        if (System.currentTimeMillis() > previewOpponentFullRosterExpiresAt) {
+            previewOpponentFullRoster.clear();
+            previewOpponentFullRosterExpiresAt = 0L;
+            return;
+        }
+        for (PokemonSet preview : previewOpponentFullRoster.values()) {
+            rememberOpponent(preview);
+            exactRandomOpponentKeys.add(opponentKey(preview));
+        }
+        exactRandomPreviewBattle = battle;
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] exact random preview attached opponents={}", exactRandomOpponentKeys.size());
+        previewOpponentFullRoster.clear();
+        previewOpponentFullRosterExpiresAt = 0L;
+    }
+
+    private static boolean hasExactRandomOpponent(PokemonSet pokemon) {
+        return pokemon != null && exactRandomPreviewBattle == opponentRosterBattle
+                && exactRandomOpponentKeys.contains(opponentKey(pokemon));
+    }
+
     static BattlePokemonSnapshot activeBattlePokemon(MinecraftClient client) {
         if (client == null || client.player == null) {
             return BattlePokemonSnapshot.empty();
@@ -584,6 +648,9 @@ final class CobblemonBattleDataProvider {
             Object localActive = localActives.isEmpty() ? null : localActives.getFirst();
             Object opponentActive = opponentActives.isEmpty() ? null : opponentActives.getFirst();
             boolean randomBattle = isRandomBattle(battle, localActor, client);
+            if (randomBattle) {
+                attachFullRandomPreviewRoster(battle);
+            }
             PokemonSet player = battlePokemonSet(localActive, true, client);
             PokemonSet opponent = battlePokemonSet(opponentActive, false, client);
             PokemonSet playerPartner = localActives.size() > 1
@@ -591,12 +658,16 @@ final class CobblemonBattleDataProvider {
             PokemonSet opponentPartner = opponentActives.size() > 1
                     ? battlePokemonSet(opponentActives.get(1), false, client) : null;
             if (randomBattle) {
-                applyRandomBattleOpponentRules(player, opponent);
-                applyRandomBattleOpponentRules(player, opponentPartner);
                 TropimonRandomBattleSets.applyInference(player);
                 TropimonRandomBattleSets.applyInference(playerPartner);
-                TropimonRandomBattleSets.applyInference(opponent);
-                TropimonRandomBattleSets.applyInference(opponentPartner);
+                if (!hasExactRandomOpponent(opponent)) {
+                    applyRandomBattleOpponentRules(player, opponent);
+                    TropimonRandomBattleSets.applyInference(opponent);
+                }
+                if (!hasExactRandomOpponent(opponentPartner)) {
+                    applyRandomBattleOpponentRules(player, opponentPartner);
+                    TropimonRandomBattleSets.applyInference(opponentPartner);
+                }
             }
             resetOpponentRosterIfBattleChanged(battle);
             rememberOpponent(opponent);
@@ -1744,6 +1815,8 @@ final class CobblemonBattleDataProvider {
         clearOpponentRoster(null);
         previewPlayerRoster.clear();
         previewOpponentRoster.clear();
+        previewOpponentFullRoster.clear();
+        exactRandomOpponentKeys.clear();
         capturedPreviewScreen = null;
         capturedPreviewInformation = null;
         loggedPreviewScreen = null;
@@ -1752,6 +1825,8 @@ final class CobblemonBattleDataProvider {
         randomBattleDetected = null;
         randomBattleQueueExpiresAt = 0L;
         previewOpponentRosterExpiresAt = 0L;
+        previewOpponentFullRosterExpiresAt = 0L;
+        exactRandomPreviewBattle = null;
         CobblemonBattleConditionTracker.resetForBattle(null);
     }
 
