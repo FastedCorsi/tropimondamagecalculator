@@ -303,7 +303,11 @@ final class CobblemonBattleDataProvider {
 
     private static void updateRandomBattlePreviewEvidence(Map<String, PokemonSet> players, String source) {
         long now = System.currentTimeMillis();
-        if (players == null || players.size() < 6 || now > randomBattleQueueExpiresAt) {
+        if (players == null || players.size() < 6) {
+            return;
+        }
+        boolean eightyFiveEvEvidence = hasRandomBattleEvSpread(players.values());
+        if (!eightyFiveEvEvidence && now > randomBattleQueueExpiresAt) {
             return;
         }
         MinecraftClient client = MinecraftClient.getInstance();
@@ -323,7 +327,7 @@ final class CobblemonBattleDataProvider {
             } catch (IllegalArgumentException ignored) {
             }
         }
-        if (identityFound && persistentMemberFound) {
+        if (!eightyFiveEvEvidence && identityFound && persistentMemberFound) {
             randomBattleQueueExpiresAt = 0L;
             randomBattlePreviewConfirmedExpiresAt = 0L;
             TropimonDamageCalcClient.LOGGER.info(
@@ -333,8 +337,8 @@ final class CobblemonBattleDataProvider {
         }
         randomBattlePreviewConfirmedExpiresAt = now + TEAM_PREVIEW_TTL_MS;
         TropimonDamageCalcClient.LOGGER.info(
-                "[CalcDBG] random preview confirmed source={} players={} identities={}",
-                source, players.size(), identityFound);
+                "[CalcDBG] random preview confirmed source={} players={} identities={} ev85={}",
+                source, players.size(), identityFound, eightyFiveEvEvidence);
     }
 
     static boolean randomBattleActive(MinecraftClient client) {
@@ -1029,13 +1033,14 @@ final class CobblemonBattleDataProvider {
             return false;
         }
         boolean previewEvidence = randomBattlePreviewConfirmed();
+        boolean eightyFiveEvEvidence = hasRandomBattleEvSpread(converted);
         randomBattleDetected = shouldTreatAsRandomBattle(false,
                 randomBattleQueueMatchedIdentity || previewEvidence,
-                converted.size(), persistentMemberFound);
+                eightyFiveEvEvidence, converted.size(), persistentMemberFound);
         TropimonDamageCalcClient.LOGGER.info(
-                "[CalcDBG] random battle detected={} source=evidence queue={} preview={} size={} persistentMember={} levels={}",
+                "[CalcDBG] random battle detected={} source=evidence queue={} preview={} ev85={} size={} persistentMember={} levels={}",
                 randomBattleDetected, randomBattleQueueMatchedIdentity, previewEvidence,
-                converted.size(), persistentMemberFound,
+                eightyFiveEvEvidence, converted.size(), persistentMemberFound,
                 converted.stream().map(pokemon -> pokemon.species.name() + "=" + pokemon.level).toList());
         return randomBattleDetected;
     }
@@ -1057,9 +1062,30 @@ final class CobblemonBattleDataProvider {
         return teamSize >= 6 && !persistentMemberFound;
     }
 
+    static boolean hasRandomBattleEvSpread(Iterable<PokemonSet> team) {
+        int pokemonCount = 0;
+        if (team == null) {
+            return false;
+        }
+        for (PokemonSet pokemon : team) {
+            if (pokemon == null) {
+                return false;
+            }
+            pokemonCount++;
+            for (Stat stat : Stat.values()) {
+                if (pokemon.evs.getOrDefault(stat, 0) != 85) {
+                    return false;
+                }
+            }
+        }
+        return pokemonCount >= 6;
+    }
+
     static boolean shouldTreatAsRandomBattle(boolean formatRandom, boolean queueOrPreviewEvidence,
-                                             int teamSize, boolean persistentMemberFound) {
-        return formatRandom || (queueOrPreviewEvidence && isGeneratedRandomTeam(teamSize, persistentMemberFound));
+                                             boolean eightyFiveEvEvidence, int teamSize,
+                                             boolean persistentMemberFound) {
+        return formatRandom || eightyFiveEvEvidence
+                || (queueOrPreviewEvidence && isGeneratedRandomTeam(teamSize, persistentMemberFound));
     }
 
     static boolean randomFormatLabel(String... values) {

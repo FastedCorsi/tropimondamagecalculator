@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -167,11 +168,27 @@ final class DamageCalculatorTest {
 
     @Test
     void randomBattleRequiresFormatOrQueueEvidenceWithAGeneratedTeam() {
-        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(true, false, 1, true));
-        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, 6, false));
-        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, false, 6, false));
-        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, 6, true));
-        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, 5, false));
+        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(true, false, false, 1, true));
+        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, false, 6, false));
+        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, false, false, 6, false));
+        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, false, 6, true));
+        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, false, 5, false));
+    }
+
+    @Test
+    void sixPokemonWithEightyFiveEvsInEveryStatAreRandomBattleEvidence() {
+        ArrayList<PokemonSet> team = new ArrayList<>();
+        for (int index = 0; index < 6; index++) {
+            PokemonSet pokemon = new PokemonSet(species("random" + index, "Random " + index,
+                    PokeType.NORMAL, PokeType.NONE, 80, 80, 80, 80, 80, 80, false));
+            pokemon.evs.replaceAll((stat, value) -> 85);
+            team.add(pokemon);
+        }
+
+        assertTrue(CobblemonBattleDataProvider.hasRandomBattleEvSpread(team));
+        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, false, true, 6, true));
+        team.getFirst().evs.put(Stat.ATK, 0);
+        assertFalse(CobblemonBattleDataProvider.hasRandomBattleEvSpread(team));
     }
 
     @Test
