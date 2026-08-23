@@ -2,7 +2,7 @@
 
 ## Message prêt à publier
 
-**Tropimon Damage Calculator 0.3.29 est disponible**
+**Tropimon Damage Calculator 0.3.30 est disponible**
 
 Un calculateur de dégâts Cobblemon directement intégré à Minecraft, pensé pour préparer un duel et vérifier rapidement un match-up sans quitter le jeu.
 
@@ -83,4 +83,4 @@ Ouverture avec le bouton `Calc` en combat, `/tropicalc` ou la touche configurabl
 
 ## Version courte
 
-**Tropimon Damage Calculator 0.3.29** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon. Une attaque seule ne force plus arbitrairement le premier set : tant que plusieurs variantes restent compatibles, le sélecteur affiche `Set ?` et laisse le choix manuel. Les attaques, talents révélés comme `Intimidate`, objets confirmés comme `Leftovers`, niveaux et types Tera affinent la déduction ; le set complet n'est appliqué automatiquement que lorsqu'une seule variante reste possible. Les six statistiques de chaque Pokémon Random Battle reçoivent systématiquement `85 EV`. Le mode Random est aussi reconnu automatiquement lorsque les six Pokémon du joueur possèdent exactement `85 EV` dans chacune des six statistiques, même si le format ou le Team Preview n'est pas exposé correctement par le serveur. À la fin du match, le roster, les sets déduits, les Pokémon actifs et les conditions sont automatiquement supprimés du calculateur. Les fichiers du jeu sont prioritaires et aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.
+**Tropimon Damage Calculator 0.3.30** ajoute un calculateur de dégâts Cobblemon directement en jeu : synchronisation des combats, équipes et Team Preview, recherche complète, EV/IV, objets, talents, formes, météo, terrains, Solo et Duo. En Random Battle, il compare les informations adverses révélées avec les sets Tropimon. Le mode est reconnu automatiquement lorsque les six Pokémon du joueur possèdent exactement `85 EV` dans chacune des six statistiques, même si le serveur n'expose pas correctement son format. Le sélecteur reste visible avec `Set 1` lorsqu'une seule variante compatible est déjà certaine, et les `85 EV` adverses remplacent correctement les anciens champs manuels. Tant que plusieurs variantes restent compatibles, le sélecteur affiche `Set ?`. Les fichiers du jeu sont prioritaires et aucune API externe n'est appelée en jeu. Compatible Minecraft 1.21.1 + Cobblemon 1.7.2.

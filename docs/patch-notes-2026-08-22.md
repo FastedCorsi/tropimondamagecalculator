@@ -12,6 +12,8 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 - Un ancien message de file Random Battle ne peut plus basculer un combat normal en mode Random.
 - Une équipe temporaire de six Pokémon ne suffit plus, sans preuve du format, à activer les règles Random Battle.
 - Détection autonome ajoutée lorsque les six Pokémon du joueur possèdent exactement `85 EV` dans chacune des six statistiques.
+- Le sélecteur Random reste visible sous la forme `Set 1` lorsqu'une seule variante compatible a déjà été déduite.
+- Les `85 EV` adverses issus du combat remplacent désormais un ancien état manuel au lieu de rester affichés comme des champs vides.
 - Isolation stricte de ces règles : aucun set Random Battle n'est appliqué aux combats classiques.
 
 ### Équipes et Team Preview

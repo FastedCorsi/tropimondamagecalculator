@@ -2156,6 +2156,25 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void randomBattleEvsReplacePreviouslyConfiguredOpponentStats() {
+        DamageCalcState state = new DamageCalcState();
+        state.defender.battleId = "random-opponent";
+        state.defender.statsKnown = true;
+        state.defender.evs.replaceAll((stat, value) -> 0);
+
+        PokemonSet live = state.defender.copy();
+        live.evs.replaceAll((stat, value) -> 85);
+        live.ivs.replaceAll((stat, value) -> 31);
+        live.statsKnown = true;
+        state.setFromBattle(new BattlePokemonSnapshot(null, live, false));
+
+        for (Stat stat : Stat.values()) {
+            assertEquals(85, state.defender.evs.get(stat));
+            assertEquals(31, state.defender.ivs.get(stat));
+        }
+    }
+
+    @Test
     void fixedDamageMovesUseVisibleBattleHistoryAndCurrentHp() {
         PokemonSet attacker = new PokemonSet(species("attacker", "Attacker", PokeType.FIGHTING, PokeType.NONE,
                 100, 100, 100, 100, 100, 100, false));

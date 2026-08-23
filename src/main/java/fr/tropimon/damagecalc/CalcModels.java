@@ -904,7 +904,7 @@ final class DamageCalcState {
             target.nature = source.nature;
             target.natureKnown = true;
         }
-        if (!target.statsKnown && source.statsKnown) {
+        if (source.statsKnown && (!target.statsKnown || hasEightyFiveEvSpread(source))) {
             target.evs.clear();
             target.evs.putAll(source.evs);
             target.ivs.clear();
@@ -916,6 +916,18 @@ final class DamageCalcState {
             target.moves.addAll(source.moves);
             target.movesKnown = true;
         }
+    }
+
+    private static boolean hasEightyFiveEvSpread(PokemonSet pokemon) {
+        if (pokemon == null) {
+            return false;
+        }
+        for (Stat stat : Stat.values()) {
+            if (pokemon.evs.getOrDefault(stat, 0) != 85) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean hasConfiguredBuild(PokemonSet pokemon) {

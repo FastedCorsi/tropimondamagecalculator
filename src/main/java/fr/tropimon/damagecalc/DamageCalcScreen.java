@@ -334,7 +334,7 @@ public final class DamageCalcScreen extends Screen {
             return false;
         }
         List<TropimonRandomBattleSets.RandomBattleSet> sets = TropimonRandomBattleSets.setsFor(pokemon.species);
-        if (sets.size() < 2) {
+        if (sets.isEmpty()) {
             resetRandomSetSelector(attacker);
             return false;
         }
@@ -352,15 +352,17 @@ public final class DamageCalcScreen extends Screen {
         if (storedIndex < 0) {
             List<TropimonRandomBattleSets.RandomBattleSet> candidates =
                     TropimonRandomBattleSets.matchingSets(pokemon);
-            if (candidates.size() == 1) {
-                setRandomSetOptions(attacker, List.of());
-                return false;
+            List<TropimonRandomBattleSets.RandomBattleSet> options = candidates.isEmpty() ? sets : candidates;
+            setRandomSetOptions(attacker, options);
+            if (options.size() == 1) {
+                TropimonRandomBattleSets.applySet(pokemon, options.getFirst());
+                setRandomSetIndex(attacker, 0);
+                updateRandomSetSearchFields(pokemon, attacker);
             }
-            setRandomSetOptions(attacker, candidates.isEmpty() ? sets : candidates);
         } else if (randomSetOptions(attacker).isEmpty()) {
             setRandomSetOptions(attacker, sets);
         }
-        return randomSetOptions(attacker).size() > 1;
+        return !randomSetOptions(attacker).isEmpty();
     }
 
     private void addRandomSetSelector(PokemonSet pokemon, int x, int y, int width, boolean attacker) {
