@@ -61,6 +61,8 @@ final class CobblemonBattleDataProvider {
     private static Object randomBattleIdentity;
     private static Boolean randomBattleDetected;
     private static long randomBattleQueueExpiresAt;
+    private static boolean randomBattleQueueMatchedIdentity;
+    private static long randomBattlePreviewConfirmedExpiresAt;
     private static final long RANDOM_BATTLE_QUEUE_TTL_MS = 900_000L;
     private static final long BATTLE_END_GRACE_MS = 2_000L;
     private static Object lifecycleBattle;
@@ -111,7 +113,7 @@ final class CobblemonBattleDataProvider {
             }
             boolean randomBattle = battle != null
                     ? actor != null && isRandomBattle(battle, actor, client)
-                    : previewAvailable && randomBattlePreviewExpected();
+                    : previewAvailable && randomBattlePreviewConfirmed();
             if (randomBattle) {
                 for (PokemonSet pokemon : output) {
                     applyRandomBattlePlayerEvDefaults(pokemon);
@@ -210,6 +212,7 @@ final class CobblemonBattleDataProvider {
         previewOpponentFullRoster.putAll(capturedFullOpponents);
         previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
         previewOpponentFullRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+        updateRandomBattlePreviewEvidence(capturedPlayers, "structured");
         TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source={} players={} opponents={}",
                 className(screen), capturedPlayers.size(), capturedOpponents.size());
     }
@@ -280,6 +283,7 @@ final class CobblemonBattleDataProvider {
         previewOpponentFullRoster.clear();
         previewOpponentFullRosterExpiresAt = 0L;
         previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
+        updateRandomBattlePreviewEvidence(capturedPlayers, "inventory");
         TropimonDamageCalcClient.LOGGER.info(
                 "[CalcDBG] team preview captured source=inventory title={} fallback={} players={} opponents={}",
                 minecraftScreenTitle(screen), randomBattleFallback,
@@ -292,6 +296,47 @@ final class CobblemonBattleDataProvider {
                 || System.currentTimeMillis() <= randomBattleQueueExpiresAt;
     }
 
+    private static boolean randomBattlePreviewConfirmed() {
+        return Boolean.TRUE.equals(randomBattleDetected)
+                || System.currentTimeMillis() <= randomBattlePreviewConfirmedExpiresAt;
+    }
+
+    private static void updateRandomBattlePreviewEvidence(Map<String, PokemonSet> players, String source) {
+        long now = System.currentTimeMillis();
+        if (players == null || players.size() < 6 || now > randomBattleQueueExpiresAt) {
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        boolean identityFound = false;
+        boolean persistentMemberFound = false;
+        for (PokemonSet pokemon : players.values()) {
+            if (pokemon == null || pokemon.battleId == null || pokemon.battleId.isBlank()) {
+                continue;
+            }
+            try {
+                UUID uuid = UUID.fromString(pokemon.battleId);
+                identityFound = true;
+                if (persistentPartyContainsUuid(client, uuid)) {
+                    persistentMemberFound = true;
+                    break;
+                }
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
+        if (identityFound && persistentMemberFound) {
+            randomBattleQueueExpiresAt = 0L;
+            randomBattlePreviewConfirmedExpiresAt = 0L;
+            TropimonDamageCalcClient.LOGGER.info(
+                    "[CalcDBG] stale random queue ignored source={} players={} persistentMember=true",
+                    source, players.size());
+            return;
+        }
+        randomBattlePreviewConfirmedExpiresAt = now + TEAM_PREVIEW_TTL_MS;
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] random preview confirmed source={} players={} identities={}",
+                source, players.size(), identityFound);
+    }
+
     static boolean randomBattleActive(MinecraftClient client) {
         if (client == null || client.player == null) {
             return false;
@@ -302,7 +347,7 @@ final class CobblemonBattleDataProvider {
                 Object actor = localBattleActor(battle, client.player.getUuid());
                 return actor != null && isRandomBattle(battle, actor, client);
             }
-            return previewIsCurrent() && randomBattlePreviewExpected();
+            return previewIsCurrent() && randomBattlePreviewConfirmed();
         } catch (Throwable ignored) {
             return false;
         }
@@ -799,6 +844,8 @@ final class CobblemonBattleDataProvider {
         randomBattleIdentity = null;
         randomBattleDetected = null;
         randomBattleQueueExpiresAt = 0L;
+        randomBattleQueueMatchedIdentity = false;
+        randomBattlePreviewConfirmedExpiresAt = 0L;
         previewOpponentRosterExpiresAt = 0L;
         previewOpponentFullRosterExpiresAt = 0L;
         CobblemonBattleConditionTracker.resetForBattle(null);
@@ -944,15 +991,13 @@ final class CobblemonBattleDataProvider {
         if (randomBattleIdentity != battle) {
             randomBattleIdentity = battle;
             randomBattleDetected = null;
+            randomBattleQueueMatchedIdentity = System.currentTimeMillis() <= randomBattleQueueExpiresAt;
+            if (randomBattleQueueMatchedIdentity) {
+                randomBattleQueueExpiresAt = 0L;
+            }
         }
         if (randomBattleDetected != null) {
             return randomBattleDetected;
-        }
-        if (System.currentTimeMillis() <= randomBattleQueueExpiresAt) {
-            randomBattleQueueExpiresAt = 0L;
-            randomBattleDetected = true;
-            TropimonDamageCalcClient.LOGGER.info("[CalcDBG] random battle detected source=queue-message");
-            return true;
         }
         Object format = invokeOptional(battle, "getBattleFormat");
         Object battleType = invokeOptional(format, "getBattleType");
@@ -983,10 +1028,14 @@ final class CobblemonBattleDataProvider {
         if (converted.size() < 6) {
             return false;
         }
-        randomBattleDetected = isGeneratedRandomTeam(converted.size(), persistentMemberFound);
+        boolean previewEvidence = randomBattlePreviewConfirmed();
+        randomBattleDetected = shouldTreatAsRandomBattle(false,
+                randomBattleQueueMatchedIdentity || previewEvidence,
+                converted.size(), persistentMemberFound);
         TropimonDamageCalcClient.LOGGER.info(
-                "[CalcDBG] random battle detected={} source=generated-team size={} persistentMember={} levels={}",
-                randomBattleDetected, converted.size(), persistentMemberFound,
+                "[CalcDBG] random battle detected={} source=evidence queue={} preview={} size={} persistentMember={} levels={}",
+                randomBattleDetected, randomBattleQueueMatchedIdentity, previewEvidence,
+                converted.size(), persistentMemberFound,
                 converted.stream().map(pokemon -> pokemon.species.name() + "=" + pokemon.level).toList());
         return randomBattleDetected;
     }
@@ -1006,6 +1055,11 @@ final class CobblemonBattleDataProvider {
 
     static boolean isGeneratedRandomTeam(int teamSize, boolean persistentMemberFound) {
         return teamSize >= 6 && !persistentMemberFound;
+    }
+
+    static boolean shouldTreatAsRandomBattle(boolean formatRandom, boolean queueOrPreviewEvidence,
+                                             int teamSize, boolean persistentMemberFound) {
+        return formatRandom || (queueOrPreviewEvidence && isGeneratedRandomTeam(teamSize, persistentMemberFound));
     }
 
     static boolean randomFormatLabel(String... values) {
@@ -1923,6 +1977,8 @@ final class CobblemonBattleDataProvider {
         randomBattleIdentity = null;
         randomBattleDetected = null;
         randomBattleQueueExpiresAt = 0L;
+        randomBattleQueueMatchedIdentity = false;
+        randomBattlePreviewConfirmedExpiresAt = 0L;
         lifecycleBattle = null;
         lifecycleBattleWasRandom = false;
         battleEndSignaled = false;

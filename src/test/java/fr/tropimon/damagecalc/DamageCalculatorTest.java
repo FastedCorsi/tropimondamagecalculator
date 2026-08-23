@@ -166,6 +166,15 @@ final class DamageCalculatorTest {
     }
 
     @Test
+    void randomBattleRequiresFormatOrQueueEvidenceWithAGeneratedTeam() {
+        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(true, false, 1, true));
+        assertTrue(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, 6, false));
+        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, false, 6, false));
+        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, 6, true));
+        assertFalse(CobblemonBattleDataProvider.shouldTreatAsRandomBattle(false, true, 5, false));
+    }
+
+    @Test
     void randomBattleLevelComesFromTheLiveBattlePokemon() {
         assertEquals(80, CobblemonBattleDataProvider.battlePokemonLevel(new TestBattlePokemon(80), 100));
         assertEquals(74, CobblemonBattleDataProvider.battlePokemonLevel(new TestBattleDetails("Dragonite, L74"), 100));

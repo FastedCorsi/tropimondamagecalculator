@@ -75,7 +75,7 @@ Pour l'adversaire, seules les informations légitimement visibles sont enregistr
 
 ## Random Battle Tropimon
 
-Le calculateur active sa logique Random Battle uniquement lorsqu'il reconnaît ce format. La détection combine le message de file d'attente, le format déclaré par le combat et la présence d'une équipe générée de six Pokémon qui ne correspond pas à l'équipe persistante du joueur. Les autres combats ne reçoivent aucune déduction de set Random Battle.
+Le calculateur active sa logique Random Battle uniquement lorsqu'il reconnaît ce format. Le format déclaré par Cobblemon constitue une preuve directe. Sinon, le message de file d'attente ou le Team Preview doit correspondre à une équipe générée de six Pokémon absente de l'équipe persistante du joueur. Un ancien message de file ou une équipe temporaire ne suffit plus à lui seul. Les autres combats ne reçoivent aucune déduction de set Random Battle.
 
 Les sets sont lus en priorité depuis les fichiers Tropimon présents dans l'installation du jeu, notamment `tropimon-random-battle-sets.json`, `tropimon-random-battle-sets` ou `tropimon.json`. Le fichier préféré est contrôlé toutes les cinq secondes et rechargé lorsqu'il change. Si aucun fichier local compatible n'est disponible, la version actuelle peut utiliser le snapshot Tropimon inclus dans le JAR.
 

@@ -8,7 +8,9 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 
 - Détection depuis le message de file d'attente Random Battle.
 - Lecture du format et des règles déclarées par le combat Cobblemon.
-- Détection de secours d'une équipe générée de six Pokémon absente de l'équipe persistante du joueur.
+- Validation croisée entre le signal de file/preview Random Battle et une équipe générée de six Pokémon absente de l'équipe persistante du joueur.
+- Un ancien message de file Random Battle ne peut plus basculer un combat normal en mode Random.
+- Une équipe temporaire de six Pokémon ne suffit plus, sans preuve du format, à activer les règles Random Battle.
 - Isolation stricte de ces règles : aucun set Random Battle n'est appliqué aux combats classiques.
 
 ### Équipes et Team Preview
@@ -101,5 +103,5 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 ## Validation
 
 - Build Fabric Minecraft 1.21.1 validé.
-- Suite automatisée : 101 tests réussis.
+- Suite automatisée couvrant notamment le rejet des faux positifs Random Battle.
 - Mod uniquement côté client : aucune action de combat n'est jouée automatiquement et aucune API Pokémon externe n'est appelée en jeu.
