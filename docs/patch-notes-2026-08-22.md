@@ -14,6 +14,7 @@ La prise en charge des Random Battles a été reconstruite autour des informatio
 - Détection autonome ajoutée lorsque les six Pokémon du joueur possèdent exactement `85 EV` dans chacune des six statistiques.
 - Le sélecteur Random reste visible sous la forme `Set 1` lorsqu'une seule variante compatible a déjà été déduite.
 - Les `85 EV` adverses issus du combat remplacent désormais un ancien état manuel au lieu de rester affichés comme des champs vides.
+- Les champs EV restent entièrement éditables : le préremplissage à `85` ne s'applique qu'aux champs encore vides et n'écrase plus les modifications manuelles suivantes.
 - Isolation stricte de ces règles : aucun set Random Battle n'est appliqué aux combats classiques.
 
 ### Équipes et Team Preview

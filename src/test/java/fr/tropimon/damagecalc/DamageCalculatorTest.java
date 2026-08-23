@@ -2172,6 +2172,11 @@ final class DamageCalculatorTest {
             assertEquals(85, state.defender.evs.get(stat));
             assertEquals(31, state.defender.ivs.get(stat));
         }
+
+        state.defender.evs.put(Stat.ATK, 252);
+        state.setFromBattle(new BattlePokemonSnapshot(null, live, false));
+        assertEquals(252, state.defender.evs.get(Stat.ATK));
+        assertEquals(85, state.defender.evs.get(Stat.HP));
     }
 
     @Test
