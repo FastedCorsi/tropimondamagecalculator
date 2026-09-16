@@ -227,6 +227,7 @@ final class DamageCalculatorTest {
 
         PokemonSet unresolved = new PokemonSet(species("absol", "Absol", PokeType.DARK, PokeType.NONE,
                 65, 130, 60, 75, 60, 75, false));
+        unresolved.battleDataMode = BattleDataMode.RANDOM;
         unresolved.level = 82;
         unresolved.item = "None";
         unresolved.itemKnown = false;
@@ -276,6 +277,7 @@ final class DamageCalculatorTest {
         SpeciesData gyaradosSpecies = species("gyarados", "Gyarados", PokeType.WATER, PokeType.FLYING,
                 95, 125, 79, 60, 100, 81, false);
         PokemonSet gyarados = new PokemonSet(gyaradosSpecies);
+        gyarados.battleDataMode = BattleDataMode.RANDOM;
         gyarados.level = 81;
         gyarados.item = "None";
         gyarados.itemKnown = false;
@@ -296,6 +298,7 @@ final class DamageCalculatorTest {
                 .contains("dragondance"));
 
         PokemonSet moxieGyarados = new PokemonSet(gyaradosSpecies);
+        moxieGyarados.battleDataMode = BattleDataMode.RANDOM;
         moxieGyarados.level = 81;
         moxieGyarados.itemKnown = false;
         moxieGyarados.ability = "Moxie";
@@ -309,6 +312,7 @@ final class DamageCalculatorTest {
 
         PokemonSet gholdengo = new PokemonSet(species("gholdengo", "Gholdengo",
                 PokeType.STEEL, PokeType.GHOST, 87, 60, 95, 133, 91, 84, false));
+        gholdengo.battleDataMode = BattleDataMode.RANDOM;
         gholdengo.level = 80;
         gholdengo.itemKnown = false;
         gholdengo.ability = "Good as Gold";
@@ -353,6 +357,72 @@ final class DamageCalculatorTest {
 
         assertSame(alola, CobblemonBattleDataProvider.preferSpecificForm(alola, base));
         assertSame(alola, CobblemonBattleDataProvider.preferSpecificForm(base, alola));
+    }
+
+    @Test
+    void observedOpponentFormAlwaysOverridesTheBaseShowdownId() {
+        SpeciesData baseStats = species("ninetales", "Ninetales", PokeType.FIRE, PokeType.NONE,
+                73, 76, 75, 81, 100, 100, false);
+        SpeciesData alolaStats = species("ninetalesalola", "Ninetales Alola", PokeType.ICE, PokeType.FAIRY,
+                73, 67, 75, 81, 100, 109, false);
+        SpeciesData base = new SpeciesData("ninetales", "Ninetales", PokeType.FIRE, PokeType.NONE,
+                baseStats.baseStats(), false, "", "ninetales", List.of());
+        SpeciesData alola = new SpeciesData("ninetalesalola", "Ninetales Alola", PokeType.ICE, PokeType.FAIRY,
+                alolaStats.baseStats(), false, "", "ninetales", List.of("alolan"));
+
+        assertSame(alola, TropimonDex.selectFormSpecies(List.of(base, alola),
+                "ninetales", "", "ninetales", List.of("alolan")));
+        assertSame(alola, TropimonDex.selectFormSpecies(List.of(base, alola),
+                "ninetales", "", "ninetales", List.of("alola")));
+        assertSame(alola, TropimonDex.selectFormSpecies(List.of(base, alola),
+                "ninetales", "Alola", "ninetales", List.of()));
+        assertSame(base, TropimonDex.selectFormSpecies(List.of(base, alola),
+                "ninetales", "", "ninetales", List.of()));
+    }
+
+    @Test
+    void observedRegionalAspectWinsForEveryOpponentSpecies() {
+        SpeciesData baseStats = species("samurott", "Samurott", PokeType.WATER, PokeType.NONE,
+                95, 100, 85, 108, 70, 70, false);
+        SpeciesData base = new SpeciesData("samurott", "Samurott", PokeType.WATER, PokeType.NONE,
+                baseStats.baseStats(), false, "", "samurott", List.of());
+        SpeciesData hisui = new SpeciesData("samurotthisui", "Samurott Hisui", PokeType.WATER, PokeType.DARK,
+                baseStats.baseStats(), false, "", "samurott", List.of("hisuian"));
+
+        assertSame(hisui, TropimonDex.selectFormSpecies(List.of(base, hisui),
+                "samurott", "", "samurott", List.of("hisuian")));
+        assertSame(hisui, TropimonDex.selectFormSpecies(List.of(base, hisui),
+                "samurott", "", "samurotthisui", List.of()));
+    }
+
+    @Test
+    void baseShowdownIdsCannotOverrideAnyObservedFormFamily() {
+        List<String> aspects = List.of("alolan", "galarian", "hisuian", "paldean",
+                "hero-form", "blade-forme", "wash", "mega");
+        for (int index = 0; index < aspects.size(); index++) {
+            String baseId = "species" + index;
+            SpeciesData base = species(baseId, "Species " + index, PokeType.NORMAL, PokeType.NONE,
+                    80, 80, 80, 80, 80, 80, false);
+            SpeciesData form = new SpeciesData(baseId + "form", "Species " + index + " Form",
+                    PokeType.ICE, PokeType.FAIRY, base.baseStats(), false, "", baseId,
+                    List.of(aspects.get(index)));
+
+            assertSame(form, TropimonDex.selectFormSpecies(List.of(base, form),
+                    baseId, "", baseId, List.of(aspects.get(index))), aspects.get(index));
+        }
+    }
+
+    @Test
+    void formNameBreaksTiesBetweenFormsSharingAnAspect() {
+        SpeciesData base = species("shared", "Shared", PokeType.NORMAL, PokeType.NONE,
+                80, 80, 80, 80, 80, 80, false);
+        SpeciesData alpha = new SpeciesData("sharedalpha", "Shared Alpha", PokeType.FIRE, PokeType.NONE,
+                base.baseStats(), false, "", "shared", List.of("transformed"));
+        SpeciesData beta = new SpeciesData("sharedbeta", "Shared Beta", PokeType.WATER, PokeType.NONE,
+                base.baseStats(), false, "", "shared", List.of("transformed"));
+
+        assertSame(beta, TropimonDex.selectFormSpecies(List.of(base, alpha, beta),
+                "shared", "Beta", "shared", List.of("transformed")));
     }
 
     @Test
@@ -2364,6 +2434,281 @@ final class DamageCalculatorTest {
         attacker.item = "Thick Club";
         DamageResult boosted = DamageCalculator.calculate(attacker, defender, move, new FieldState());
         assertTrue(boosted.maxDamage() > baseline.maxDamage());
+    }
+
+    @Test
+    void cobblemonAbilityIdsRemainCanonicalInEveryLanguage() {
+        assertEquals("Protean", CobblemonDexDataProvider.canonicalAbilityName("protean"));
+        assertEquals("Protean", CobblemonDexDataProvider.canonicalAbilityName("cobblemon:protean"));
+        assertEquals("Protean", CobblemonDexDataProvider.canonicalAbilityName("cobblemon.ability.protean"));
+        assertEquals("Tough Claws", CobblemonDexDataProvider.canonicalAbilityName("tough_claws"));
+    }
+
+    @Test
+    void proteanAndLiberoApplyTheMoveTypeStabBeforeDamage() {
+        PokemonSet attacker = new PokemonSet(species("greninja", "Greninja", PokeType.WATER, PokeType.DARK,
+                72, 95, 67, 103, 71, 122, false));
+        PokemonSet defender = new PokemonSet(species("blastoise", "Blastoise", PokeType.WATER, PokeType.NONE,
+                79, 83, 100, 85, 105, 78, false));
+        MoveData move = move("thunderbolt", "Thunderbolt", PokeType.ELECTRIC, DamageCategory.SPECIAL, 90, false);
+
+        DamageResult withoutAbility = DamageCalculator.calculate(attacker, defender, move, new FieldState());
+        attacker.ability = "Protean";
+        DamageResult protean = DamageCalculator.calculate(attacker, defender, move, new FieldState());
+        attacker.ability = "Libero";
+        DamageResult libero = DamageCalculator.calculate(attacker, defender, move, new FieldState());
+
+        assertTrue(protean.maxDamage() > withoutAbility.maxDamage());
+        assertEquals(protean.maxDamage(), libero.maxDamage());
+        assertTrue(protean.notes().contains("Protean STAB"));
+        assertTrue(libero.notes().contains("Libero STAB"));
+
+        attacker.teraType = PokeType.FIRE;
+        attacker.terastallized = true;
+        DamageResult terastallized = DamageCalculator.calculate(attacker, defender, move, new FieldState());
+        assertEquals(withoutAbility.maxDamage(), terastallized.maxDamage());
+        assertFalse(terastallized.notes().contains("Libero STAB"));
+    }
+
+    @Test
+    void alternativeFormsUseCobblemonFrenchNamesAndFormLabels() {
+        LinkedHashMap<String, String> french = new LinkedHashMap<>();
+        french.put("cobblemon.species.palafin.name", "Superdofin");
+        french.put("cobblemon.ui.pokedex.info.form.palafin-hero", "Forme Super");
+        french.put("cobblemon.species.aegislash.name", "Exagide");
+        french.put("cobblemon.ui.pokedex.info.form.aegislash-blade", "Forme Assaut");
+        french.put("cobblemon.ui.pokedex.info.form.aegislash", "Forme Parade");
+        french.put("cobblemon.species.samurott.name", "Clamiral");
+        french.put("cobblemon.ui.pokedex.info.form.samurott-hisui", "Forme de Hisui");
+        french.put("cobblemon.species.slowking.name", "Roigada");
+        french.put("cobblemon.ui.pokedex.info.form.slowking-galar", "Forme de Galar");
+
+        SpeciesData stats = species("base", "Base", PokeType.WATER, PokeType.NONE,
+                100, 100, 100, 100, 100, 100, false);
+        SpeciesData palafin = new SpeciesData("palafinhero", "Palafin Hero", PokeType.WATER, PokeType.NONE,
+                stats.baseStats(), false, "", "palafin", List.of("hero-form"), 97.4);
+        SpeciesData aegislash = new SpeciesData("aegislashblade", "Aegislash Blade", PokeType.STEEL, PokeType.GHOST,
+                stats.baseStats(), false, "", "aegislash", List.of("blade-forme"), 53.0);
+        SpeciesData aegislashShield = new SpeciesData("aegislashshield", "Aegislash Shield", PokeType.STEEL, PokeType.GHOST,
+                stats.baseStats(), false, "", "aegislash", List.of("shield-forme"), 53.0);
+        SpeciesData samurott = new SpeciesData("samurotthisui", "Samurott Hisui", PokeType.WATER, PokeType.DARK,
+                stats.baseStats(), false, "", "samurott", List.of("hisuian"), 58.2);
+        SpeciesData slowking = new SpeciesData("slowkinggalar", "Slowking Galar", PokeType.POISON, PokeType.PSYCHIC,
+                stats.baseStats(), false, "", "slowking", List.of("galarian"), 79.5);
+
+        assertEquals("Superdofin (Forme Super)", localized(palafin, french));
+        assertEquals("Exagide (Forme Assaut)", localized(aegislash, french));
+        assertEquals("Exagide (Forme Parade)", localized(aegislashShield, french));
+        assertEquals("Clamiral (Forme de Hisui)", localized(samurott, french));
+        assertEquals("Roigada (Forme de Galar)", localized(slowking, french));
+    }
+
+    @Test
+    void natureEffectsAreVisibleAndMatchTheirStatMultipliers() {
+        NatureData adamant = new NatureData("adamant", "Adamant", Stat.ATK, Stat.SPA);
+        NatureData serious = new NatureData("serious", "Serious", null, null);
+
+        assertEquals("Atk+", DamageCalcScreen.natureStatLabel(adamant, Stat.ATK));
+        assertEquals("SpA-", DamageCalcScreen.natureStatLabel(adamant, Stat.SPA));
+        assertEquals("Def", DamageCalcScreen.natureStatLabel(adamant, Stat.DEF));
+        assertEquals("PV", DamageCalcScreen.natureStatLabel(adamant, Stat.HP));
+        assertEquals("Atk", DamageCalcScreen.natureStatLabel(serious, Stat.ATK));
+        assertEquals(1.1, adamant.modifier(Stat.ATK), 0.0001);
+        assertEquals(0.9, adamant.modifier(Stat.SPA), 0.0001);
+        assertEquals(1.0, adamant.modifier(Stat.DEF), 0.0001);
+    }
+
+    private static String localized(SpeciesData species, LinkedHashMap<String, String> translations) {
+        return DamageCalcScreen.localizedSpeciesDisplayName(species,
+                key -> translations.getOrDefault(key, ""));
+    }
+
+    @Test
+    void rankedProfileUsesTheMostPlayedBuildParts() {
+        String json = """
+                {
+                  "abilities": {"Overgrow": 19.44, "Grassy Surge": 80.56},
+                  "items": {"Leftovers": 5.56, "Choice Band": 66.67},
+                  "moves": {
+                    "U-turn": 80.56,
+                    "Knock Off": 94.44,
+                    "Wood Hammer": 88.89,
+                    "Grassy Glide": 80.55,
+                    "Swords Dance": 5.56
+                  },
+                  "natures": {"Jolly": 13.89, "Adamant": 63.89}
+                }
+                """;
+
+        TropimonRankedUsageService.RankedProfile profile =
+                TropimonRankedUsageService.profileFromJson("Rillaboom", json);
+
+        assertEquals("rillaboom", profile.speciesKey());
+        assertEquals("Choice Band", profile.item());
+        assertEquals("Grassy Surge", profile.ability());
+        assertEquals("Adamant", profile.nature());
+        assertEquals(List.of("Knock Off", "Wood Hammer", "U-turn", "Grassy Glide", "Swords Dance"),
+                profile.moves().stream().map(TropimonRankedUsageService.RankedMove::name).toList());
+    }
+
+    @Test
+    void rankedProfilePrefillsUnknownOpponentWithoutMarkingGuessesAsRevealed() {
+        PokemonSet pokemon = new PokemonSet(TropimonDex.species("abomasnow"));
+        pokemon.itemKnown = false;
+        pokemon.abilityKnown = false;
+        pokemon.natureKnown = false;
+        pokemon.movesKnown = false;
+        pokemon.moves.clear();
+        while (pokemon.moves.size() < 4) pokemon.moves.add(null);
+        TropimonRankedUsageService.RankedProfile profile = new TropimonRankedUsageService.RankedProfile(
+                "abomasnow", "Leftovers", "Snow Warning", "Modest", List.of(
+                new TropimonRankedUsageService.RankedMove("Blizzard", 90.0),
+                new TropimonRankedUsageService.RankedMove("Giga Drain", 80.0),
+                new TropimonRankedUsageService.RankedMove("Wood Hammer", 70.0),
+                new TropimonRankedUsageService.RankedMove("Ice Punch", 60.0)));
+
+        TropimonRankedUsageService.applyProfile(pokemon, profile);
+
+        assertEquals("Leftovers", pokemon.item);
+        assertEquals("Snow Warning", pokemon.ability);
+        assertEquals("modest", pokemon.nature.id());
+        assertFalse(pokemon.itemKnown);
+        assertFalse(pokemon.abilityKnown);
+        assertFalse(pokemon.natureKnown);
+        assertFalse(pokemon.movesKnown);
+        assertTrue(pokemon.rankedNatureSuggested);
+    }
+
+    @Test
+    void observedOpponentMoveReplacesOnlyTheLeastUsedPrediction() {
+        PokemonSet pokemon = new PokemonSet(species("ranked", "Ranked", PokeType.NORMAL, PokeType.NONE,
+                80, 80, 80, 80, 80, 80, false));
+        MoveData first = move("first", "First", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData second = move("second", "Second", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData third = move("third", "Third", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData least = move("least", "Least", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData revealed = move("revealed", "Revealed", PokeType.FIRE, DamageCategory.SPECIAL, 90, false);
+        pokemon.moves.clear();
+        pokemon.moves.addAll(List.of(first, second, third, least));
+        pokemon.rankedProfileKey = "ranked";
+        pokemon.rankedMoveUsage.put(first.id(), 90.0);
+        pokemon.rankedMoveUsage.put(second.id(), 80.0);
+        pokemon.rankedMoveUsage.put(third.id(), 70.0);
+        pokemon.rankedMoveUsage.put(least.id(), 10.0);
+
+        assertTrue(TropimonRankedUsageService.observeMove(pokemon, revealed));
+
+        List<String> ids = pokemon.moves.stream().map(MoveData::id).toList();
+        assertTrue(ids.contains(revealed.id()));
+        assertTrue(ids.contains(first.id()));
+        assertTrue(ids.contains(second.id()));
+        assertTrue(ids.contains(third.id()));
+        assertFalse(ids.contains(least.id()));
+        assertTrue(pokemon.observedMoveIds.contains(revealed.id()));
+    }
+
+    @Test
+    void observedAndManualMovesAreNeverOverwrittenByRankedPredictions() {
+        PokemonSet pokemon = new PokemonSet(species("protected", "Protected", PokeType.NORMAL, PokeType.NONE,
+                80, 80, 80, 80, 80, 80, false));
+        MoveData first = move("first", "First", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData second = move("second", "Second", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData third = move("third", "Third", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData manual = move("manual", "Manual", PokeType.WATER, DamageCategory.SPECIAL, 80, false);
+        MoveData observed = move("observed", "Observed", PokeType.FIRE, DamageCategory.SPECIAL, 80, false);
+        pokemon.moves.clear();
+        pokemon.moves.addAll(List.of(first, second, third, manual));
+        pokemon.rankedProfileKey = "protected";
+        pokemon.rankedMoveUsage.put(first.id(), 90.0);
+        pokemon.rankedMoveUsage.put(second.id(), 80.0);
+        pokemon.rankedMoveUsage.put(third.id(), 70.0);
+        pokemon.rankedMoveUsage.put(manual.id(), 5.0);
+        pokemon.manualMoveIds.add(manual.id());
+
+        TropimonRankedUsageService.observeMove(pokemon, observed);
+        TropimonRankedUsageService.observeMove(pokemon, first);
+
+        List<String> ids = pokemon.moves.stream().map(MoveData::id).toList();
+        assertTrue(ids.contains(manual.id()));
+        assertTrue(ids.contains(observed.id()));
+        assertTrue(ids.contains(first.id()));
+        assertEquals(4, ids.size());
+    }
+
+    @Test
+    void deletedPredictionDoesNotReturnDuringBattleSynchronization() {
+        PokemonSet edited = new PokemonSet(species("deleted", "Deleted", PokeType.NORMAL, PokeType.NONE,
+                80, 80, 80, 80, 80, 80, false));
+        MoveData first = move("first", "First", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData deleted = move("deletedmove", "Deleted Move", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        edited.moves.clear();
+        edited.moves.add(first);
+        edited.moves.add(deleted);
+        edited.moves.add(null);
+        edited.moves.add(null);
+        edited.rankedProfileKey = "deleted";
+        edited.rankedMoveUsage.put(first.id(), 90.0);
+        edited.rankedMoveUsage.put(deleted.id(), 80.0);
+        edited.deleteMove(1);
+
+        PokemonSet freshSnapshot = edited.copy();
+        freshSnapshot.suppressedMoveIds.clear();
+        freshSnapshot.moves.set(1, deleted);
+        TropimonRankedUsageService.mergeMoveKnowledge(freshSnapshot, edited);
+
+        assertTrue(freshSnapshot.moves.stream().noneMatch(move -> move != null && move.id().equals(deleted.id())));
+    }
+
+    @Test
+    void switchingToRandomBattleRemovesEveryRankedGuessButKeepsRevealedMoves() {
+        PokemonSet pokemon = new PokemonSet(species("random", "Random", PokeType.NORMAL, PokeType.NONE,
+                80, 80, 80, 80, 80, 80, false));
+        MoveData predicted = move("predicted", "Predicted", PokeType.NORMAL, DamageCategory.PHYSICAL, 80, false);
+        MoveData observed = move("observed", "Observed", PokeType.FIRE, DamageCategory.SPECIAL, 80, false);
+        pokemon.itemKnown = false;
+        pokemon.abilityKnown = false;
+        pokemon.natureKnown = false;
+        pokemon.item = "Choice Band";
+        pokemon.ability = "Intimidate";
+        pokemon.nature = new NatureData("adamant", "Adamant", Stat.ATK, Stat.SPA);
+        pokemon.rankedProfileKey = "random";
+        pokemon.rankedItemSuggested = true;
+        pokemon.rankedAbilitySuggested = true;
+        pokemon.rankedNatureSuggested = true;
+        pokemon.rankedMoveUsage.put(predicted.id(), 90.0);
+        pokemon.moves.clear();
+        pokemon.moves.add(predicted);
+        pokemon.moves.add(null);
+        pokemon.moves.add(null);
+        pokemon.moves.add(null);
+        TropimonRankedUsageService.observeMove(pokemon, observed);
+
+        TropimonRankedUsageService.clearPrediction(pokemon);
+
+        assertEquals("None", pokemon.item);
+        assertEquals("None", pokemon.ability);
+        assertEquals("serious", pokemon.nature.id());
+        assertTrue(pokemon.moves.stream().anyMatch(move -> move != null && move.id().equals(observed.id())));
+        assertTrue(pokemon.moves.stream().noneMatch(move -> move != null && move.id().equals(predicted.id())));
+        assertTrue(pokemon.rankedProfileKey.isBlank());
+    }
+
+    @Test
+    void searchBuffersStayEmptyAfterBattleSynchronization() {
+        DamageCalcState state = new DamageCalcState();
+        state.attackerSearch = "Abomasnow";
+        state.defenderSearch = "Charizard";
+        state.attackerItemSearch = "Leftovers";
+        state.defenderAbilitySearch = "Blaze";
+        state.attackerNatureSearch = "Adamant";
+
+        state.syncSearchFieldsFromSets();
+
+        assertEquals("", state.attackerSearch);
+        assertEquals("", state.defenderSearch);
+        assertEquals("", state.attackerItemSearch);
+        assertEquals("", state.defenderAbilitySearch);
+        assertEquals("", state.attackerNatureSearch);
     }
 
     @Test

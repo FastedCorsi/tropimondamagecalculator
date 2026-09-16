@@ -9,6 +9,8 @@
   "screen.tropimon_damage_calc.search.ability": "Talent",
   "screen.tropimon_damage_calc.search.partner_ability": "Talent partenaire",
   "screen.tropimon_damage_calc.search.nature": "Nature",
+  "screen.tropimon_damage_calc.nature.neutral": "%s | Neutre",
+  "screen.tropimon_damage_calc.nature.changed": "%s | %s +10%% / %s -10%%",
   "screen.tropimon_damage_calc.search.move": "Attaque %s",
   "screen.tropimon_damage_calc.none": "Aucun",
   "screen.tropimon_damage_calc.level_short": "Nv.%s",
@@ -63,7 +65,7 @@
   "screen.tropimon_damage_calc.tooltip.double": "Passer en combat Duo",
   "screen.tropimon_damage_calc.tooltip.critical": "Forcer un coup critique",
   "description.tropimon_damage_calc.nature.neutral": "%s : nature neutre",
-  "description.tropimon_damage_calc.nature.changed": "%s : +%s / -%s",
+  "description.tropimon_damage_calc.nature.changed": "%s : %s +10%% / %s -10%%",
   "description.tropimon_damage_calc.item.none": "Aucun objet",
   "description.tropimon_damage_calc.item.fallback": "%s : objet tenu Cobblemon",
   "description.tropimon_damage_calc.ability.none": "Aucun talent",
@@ -101,6 +103,7 @@
   "diagnostic.tropimon_damage_calc.accuracy_per_hit": "Précision par coup : %s%% ; chaque nouveau jet est inclus",
   "diagnostic.tropimon_damage_calc.ohko": "K.O. en un coup en cas de réussite ; niveau, immunités et Fermeté inclus",
   "diagnostic.tropimon_damage_calc.dex": "[TropiCalc] Données Cobblemon : %s",
+  "diagnostic.tropimon_damage_calc.ranked": "[TropiCalc] Suggestions Ranked : %s",
   "diagnostic.tropimon_damage_calc.battle": "[TropiCalc] Combat=%s | %s | %s contre %s | équipe=%s",
   "diagnostic.tropimon_damage_calc.conditions": "[TropiCalc] Conditions : %s",
   "diagnostic.tropimon_damage_calc.renderer": "[TropiCalc] Rendu 3D : %s",
@@ -111,5 +114,6 @@
   "screen.tropimon_damage_calc.random_set": "Set %s",
   "screen.tropimon_damage_calc.random_set.unknown": "Set ?",
   "screen.tropimon_damage_calc.random_set.unknown.tooltip": "%s sets sont encore possibles. Cliquez pour en choisir un manuellement.",
-  "screen.tropimon_damage_calc.random_set.tooltip": "Set %s/%s | Objet : %s | Talent : %s | Attaques : %s"
+  "screen.tropimon_damage_calc.random_set.tooltip": "Set %s/%s | Objet : %s | Talent : %s | Attaques : %s",
+  "screen.tropimon_damage_calc.ranked_evs": "Répartition EV estimée sur Tropimon : %s%% d'utilisation. Les EV réels de l'adversaire restent inconnus."
 }

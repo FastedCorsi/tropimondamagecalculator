@@ -3,6 +3,7 @@ package fr.tropimon.damagecalc;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.component.ComponentType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.slot.Slot;
@@ -42,23 +43,21 @@ final class CobblemonBattleDataProvider {
     private static long battleCacheTick = Long.MIN_VALUE;
     private static Object battleCache;
     private static Object opponentRosterBattle;
+    private static Object opponentRosterActor;
     private static final LinkedHashMap<String, PokemonSet> opponentRoster = new LinkedHashMap<>();
+    private static final Map<String, String> loggedBattleForms = new LinkedHashMap<>();
     private static final LinkedHashMap<String, PokemonSet> previewPlayerRoster = new LinkedHashMap<>();
     private static final LinkedHashMap<String, PokemonSet> previewOpponentRoster = new LinkedHashMap<>();
-    private static final LinkedHashMap<String, PokemonSet> previewOpponentFullRoster = new LinkedHashMap<>();
-    private static final Set<String> exactRandomOpponentKeys = new HashSet<>();
     private static Object capturedPreviewScreen;
-    private static Object capturedPreviewInformation;
     private static Object loggedPreviewScreen;
     private static Object loggedRandomPreviewCandidate;
     private static long previewOpponentRosterExpiresAt;
-    private static long previewOpponentFullRosterExpiresAt;
-    private static Object exactRandomPreviewBattle;
     private static final long TEAM_PREVIEW_TTL_MS = 600_000L;
     private static Object loggedOpponentRosterBattle;
     private static int loggedOpponentRosterSize = -1;
     private static String loggedLocalHydration = "";
     private static Object randomBattleIdentity;
+    private static Object randomBattleActorIdentity;
     private static Boolean randomBattleDetected;
     private static long randomBattleQueueExpiresAt;
     private static boolean randomBattleQueueMatchedIdentity;
@@ -66,6 +65,7 @@ final class CobblemonBattleDataProvider {
     private static final long RANDOM_BATTLE_QUEUE_TTL_MS = 900_000L;
     private static final long BATTLE_END_GRACE_MS = 2_000L;
     private static Object lifecycleBattle;
+    private static Object lifecycleActor;
     private static boolean lifecycleBattleWasRandom;
     private static boolean battleEndSignaled;
     private static long battleMissingSince;
@@ -119,6 +119,10 @@ final class CobblemonBattleDataProvider {
                     applyRandomBattlePlayerEvDefaults(pokemon);
                     TropimonRandomBattleSets.applyInference(pokemon);
                 }
+            } else if (battle != null) {
+                for (PokemonSet pokemon : output) {
+                    pokemon.battleDataMode = BattleDataMode.NORMAL;
+                }
             }
         } catch (Throwable ignored) {
             debugParty("party load failed: " + ignored.getClass().getSimpleName() + " " + ignored.getMessage());
@@ -136,11 +140,12 @@ final class CobblemonBattleDataProvider {
         }
         try {
             Object battle = currentBattle(client);
-            resetOpponentRosterIfBattleChanged(battle);
             if (battle == null) {
                 return previewOpponentParty();
             }
             Object localActor = localBattleActor(battle, client.player.getUuid());
+            PokemonSet randomTemplate = randomBattlePlayerTemplate(battle, localActor, client);
+            resetOpponentRosterIfBattleChanged(battle, localActor);
             Object localSide = invokeOptional(localActor, "getSide");
             for (Object side : sides(battle)) {
                 if (side == localSide) {
@@ -160,14 +165,16 @@ final class CobblemonBattleDataProvider {
                 }
             }
             logOpponentRosterSize(battle, "battle actor");
-            PokemonSet randomTemplate = randomBattlePlayerTemplate(battle, localActor, client);
             if (randomTemplate != null) {
-                attachFullRandomPreviewRoster(battle);
                 for (PokemonSet opponent : opponentRoster.values()) {
+                    TropimonRankedUsageService.clearPrediction(opponent);
                     applyRandomBattleOpponentRules(randomTemplate, opponent);
-                    if (!hasExactRandomOpponent(opponent)) {
-                        TropimonRandomBattleSets.applyInference(opponent);
-                    }
+                    TropimonRandomBattleSets.applyInference(opponent);
+                }
+            } else if (Boolean.FALSE.equals(randomBattleDetected)) {
+                for (PokemonSet opponent : opponentRoster.values()) {
+                    markNormalBattleData(opponent);
+                    TropimonRankedUsageService.INSTANCE.enrichOpponent(opponent);
                 }
             }
             return copyParty(new ArrayList<>(opponentRoster.values()));
@@ -179,67 +186,9 @@ final class CobblemonBattleDataProvider {
 
     static void captureVisibleTeamPreview(Object screen) {
         logRandomPreviewCandidate(screen);
-        if (captureInventoryTeamPreview(screen)) {
-            return;
-        }
-        Object information = teamPreviewInformation(screen);
-        if (information == null) {
-            return;
-        }
-        if (screen == capturedPreviewScreen && information == capturedPreviewInformation
-                && (!previewPlayerRoster.isEmpty() || !previewOpponentRoster.isEmpty())) {
-            previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-            if (!previewOpponentFullRoster.isEmpty()) {
-                previewOpponentFullRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-            }
-            return;
-        }
-        LinkedHashMap<String, PokemonSet> capturedPlayers = decodedPreviewRoster(
-                invokeOptional(information, "getPlayerParty"), false);
-        LinkedHashMap<String, PokemonSet> capturedFullOpponents = decodedPreviewRoster(
-                invokeOptional(information, "getOpponentParty"), false);
-        LinkedHashMap<String, PokemonSet> capturedOpponents = hiddenPreviewRoster(capturedFullOpponents);
-        if (capturedPlayers.isEmpty() && capturedOpponents.isEmpty()) {
-            return;
-        }
-        capturedPreviewScreen = screen;
-        capturedPreviewInformation = information;
-        previewPlayerRoster.clear();
-        previewPlayerRoster.putAll(capturedPlayers);
-        previewOpponentRoster.clear();
-        previewOpponentRoster.putAll(capturedOpponents);
-        previewOpponentFullRoster.clear();
-        previewOpponentFullRoster.putAll(capturedFullOpponents);
-        previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-        previewOpponentFullRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
-        updateRandomBattlePreviewEvidence(capturedPlayers, "structured");
-        TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview captured source={} players={} opponents={}",
-                className(screen), capturedPlayers.size(), capturedOpponents.size());
-    }
-
-    private static LinkedHashMap<String, PokemonSet> hiddenPreviewRoster(Map<String, PokemonSet> fullRoster) {
-        LinkedHashMap<String, PokemonSet> hidden = new LinkedHashMap<>();
-        for (Map.Entry<String, PokemonSet> entry : fullRoster.entrySet()) {
-            hidden.put(entry.getKey(), hideOpponentPrivateData(entry.getValue()));
-        }
-        return hidden;
-    }
-
-    private static LinkedHashMap<String, PokemonSet> decodedPreviewRoster(Object party, boolean hidePrivateData) {
-        LinkedHashMap<String, PokemonSet> captured = new LinkedHashMap<>();
-        Object decoded = invokeOptional(party, "getDecodedPokemons");
-        if (!(decoded instanceof Iterable<?> iterable)) {
-            return captured;
-        }
-        for (Object live : iterable) {
-            PokemonSet converted = convertPartyPokemon(live);
-            if (converted == null) {
-                continue;
-            }
-            PokemonSet preview = hidePrivateData ? hideOpponentPrivateData(converted) : converted;
-            captured.put(opponentKey(preview), preview);
-        }
-        return captured;
+        // Only public Minecraft inventory/component data is read from previews. Battle actors are read
+        // separately through Cobblemon; never inspect another mod's screen or private party DTOs.
+        captureInventoryTeamPreview(screen);
     }
 
     private static boolean captureInventoryTeamPreview(Object screen) {
@@ -268,20 +217,17 @@ final class CobblemonBattleDataProvider {
         if (randomBattleFallback && (capturedPlayers.isEmpty() || capturedOpponents.isEmpty())) {
             return false;
         }
-        if (screen == capturedPreviewScreen && screen == capturedPreviewInformation
+        if (screen == capturedPreviewScreen
                 && previewPlayerRoster.keySet().equals(capturedPlayers.keySet())
                 && previewOpponentRoster.keySet().equals(capturedOpponents.keySet())) {
             previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
             return true;
         }
         capturedPreviewScreen = screen;
-        capturedPreviewInformation = screen;
         previewPlayerRoster.clear();
         previewPlayerRoster.putAll(capturedPlayers);
         previewOpponentRoster.clear();
         previewOpponentRoster.putAll(capturedOpponents);
-        previewOpponentFullRoster.clear();
-        previewOpponentFullRosterExpiresAt = 0L;
         previewOpponentRosterExpiresAt = System.currentTimeMillis() + TEAM_PREVIEW_TTL_MS;
         updateRandomBattlePreviewEvidence(capturedPlayers, "inventory");
         TropimonDamageCalcClient.LOGGER.info(
@@ -415,8 +361,8 @@ final class CobblemonBattleDataProvider {
         }
         SpeciesData species = null;
         try {
-            Object componentType = Registries.DATA_COMPONENT_TYPE.get(Identifier.of("cobblemon", "pokemon_item"));
-            Object component = invokeOptional(stack, "get", componentType);
+            ComponentType<?> componentType = Registries.DATA_COMPONENT_TYPE.get(Identifier.of("cobblemon", "pokemon_item"));
+            Object component = componentType == null ? null : stack.get(componentType);
             Object speciesId = invokeOptional(component, "getSpecies");
             List<String> aspects = stringList(invokeOptional(component, "getAspects"));
             String id = speciesId instanceof Identifier identifier ? identifier.getPath() : text(speciesId);
@@ -452,29 +398,6 @@ final class CobblemonBattleDataProvider {
         return preview;
     }
 
-    private static Object teamPreviewInformation(Object screen) {
-        if (screen == null) {
-            return null;
-        }
-        for (String method : List.of("getInformations", "getBattleInformations", "getBattleInfo")) {
-            Object value = invokeOptional(screen, method);
-            if (hasOpponentParty(value)) {
-                return value;
-            }
-        }
-        for (String field : List.of("informations", "battleInformations", "battleInfo", "information")) {
-            Object value = readFieldOptional(screen, field);
-            if (hasOpponentParty(value)) {
-                return value;
-            }
-        }
-        return hasOpponentParty(screen) ? screen : null;
-    }
-
-    private static boolean hasOpponentParty(Object value) {
-        return value != null && invokeOptional(value, "getOpponentParty") != null;
-    }
-
     private static List<PokemonSet> previewOpponentParty() {
         if (!previewIsCurrent()) {
             previewOpponentRoster.clear();
@@ -506,6 +429,16 @@ final class CobblemonBattleDataProvider {
         hidden.ivs.replaceAll((stat, value) -> 31);
         hidden.boosts.replaceAll((stat, value) -> 0);
         hidden.moves.clear();
+        hidden.rankedMoveUsage.clear();
+        hidden.observedMoveIds.clear();
+        hidden.manualMoveIds.clear();
+        hidden.suppressedMoveIds.clear();
+        hidden.rankedProfileKey = "";
+        hidden.rankedItemSuggested = false;
+        hidden.rankedAbilitySuggested = false;
+        hidden.rankedNatureSuggested = false;
+        hidden.rankedEvSpread = null;
+        hidden.evsManuallyEdited = false;
         while (hidden.moves.size() < 4) {
             hidden.moves.add(null);
         }
@@ -537,17 +470,19 @@ final class CobblemonBattleDataProvider {
             return;
         }
         if (Boolean.TRUE.equals(randomBattleDetected)) {
+            pokemon.battleDataMode = BattleDataMode.RANDOM;
+            TropimonRankedUsageService.clearPrediction(pokemon);
             TropimonRandomBattleSets.applyInference(pokemon);
+        } else if (Boolean.FALSE.equals(randomBattleDetected)) {
+            pokemon.battleDataMode = BattleDataMode.NORMAL;
         }
         String key = opponentKey(pokemon);
         PokemonSet existing = opponentRoster.get(key);
-        boolean existingWasExact = exactRandomOpponentKeys.contains(key);
         if (existing == null && !pokemon.battleId.isBlank()) {
             String anonymousKey = matchingAnonymousOpponentKey(opponentRoster, pokemon);
             if (anonymousKey != null) {
                 existing = opponentRoster.get(anonymousKey);
                 opponentRoster.remove(anonymousKey);
-                existingWasExact = exactRandomOpponentKeys.remove(anonymousKey);
                 if (!existing.species.id().equals(pokemon.species.id())) {
                     TropimonDamageCalcClient.LOGGER.info(
                             "[CalcDBG] opponent form reconciled preview={} active={} battleId={}",
@@ -559,8 +494,21 @@ final class CobblemonBattleDataProvider {
             opponentRoster.put(key, pokemon.copy());
             return;
         }
+        if (!existing.canMergeBattleDataFrom(pokemon)) {
+            opponentRoster.put(key, pokemon.copy());
+            return;
+        }
         PokemonSet merged = pokemon.copy();
-        merged.species = preferSpecificForm(existing.species, pokemon.species);
+        SpeciesData resolvedSpecies = mergedOpponentSpecies(existing, pokemon);
+        if (!merged.species.id().equals(resolvedSpecies.id())) {
+            TropimonRankedUsageService.clearPrediction(merged);
+        }
+        if (!existing.species.id().equals(resolvedSpecies.id())) {
+            existing = existing.copy();
+            TropimonRankedUsageService.clearPrediction(existing);
+        }
+        merged.species = resolvedSpecies;
+        merged.battleFormObserved = existing.battleFormObserved || pokemon.battleFormObserved;
         if (!pokemon.itemKnown && existing.itemKnown) {
             merged.item = existing.item;
             merged.itemKnown = true;
@@ -579,12 +527,11 @@ final class CobblemonBattleDataProvider {
             merged.ivs.clear();
             merged.ivs.putAll(existing.ivs);
             merged.statsKnown = true;
+            merged.rankedEvSpread = null;
         }
-        mergeKnownMoves(merged, existing);
+        TropimonRankedUsageService.mergeEvSuggestion(merged, existing);
+        TropimonRankedUsageService.mergeMoveKnowledge(merged, existing);
         opponentRoster.put(key, merged);
-        if (existingWasExact) {
-            exactRandomOpponentKeys.add(key);
-        }
     }
 
     static String matchingAnonymousOpponentKey(Map<String, PokemonSet> roster, PokemonSet pokemon) {
@@ -607,6 +554,14 @@ final class CobblemonBattleDataProvider {
         return baseMatches.size() == 1 ? baseMatches.getFirst() : null;
     }
 
+    static SpeciesData mergedOpponentSpecies(PokemonSet existing, PokemonSet incoming) {
+        // An observed return to the base form is also a real form change. A later
+        // party/preview snapshot must not replace the current battle appearance.
+        if (incoming.battleFormObserved) return incoming.species;
+        if (existing.battleFormObserved) return existing.species;
+        return preferSpecificForm(existing.species, incoming.species);
+    }
+
     private static void logOpponentRosterSize(Object battle, String source) {
         int size = opponentRoster.size();
         if (battle != loggedOpponentRosterBattle || size != loggedOpponentRosterSize) {
@@ -614,29 +569,6 @@ final class CobblemonBattleDataProvider {
             loggedOpponentRosterSize = size;
             TropimonDamageCalcClient.LOGGER.info("[CalcDBG] opponent roster source={} count={}", source, size);
         }
-    }
-
-    private static void mergeKnownMoves(PokemonSet target, PokemonSet source) {
-        ArrayList<MoveData> known = new ArrayList<>();
-        for (MoveData move : target.moves) {
-            if (move != null && known.stream().noneMatch(value -> value.id().equals(move.id()))) {
-                known.add(move);
-            }
-        }
-        for (MoveData move : source.moves) {
-            if (move != null && known.stream().noneMatch(value -> value.id().equals(move.id()))) {
-                known.add(move);
-            }
-        }
-        if (known.isEmpty()) {
-            return;
-        }
-        target.moves.clear();
-        target.moves.addAll(known.subList(0, Math.min(4, known.size())));
-        while (target.moves.size() < 4) {
-            target.moves.add(null);
-        }
-        target.movesKnown = true;
     }
 
     static void rememberOpponentRevelation(PokemonSet pokemon) {
@@ -675,16 +607,29 @@ final class CobblemonBattleDataProvider {
         }
     }
 
+    private static void resetOpponentRosterIfBattleChanged(Object battle, Object localActor) {
+        resetOpponentRosterIfBattleChanged(battle);
+        if (battle == null || localActor == null) {
+            return;
+        }
+        if (opponentRosterActor != null && opponentRosterActor != localActor) {
+            clearOpponentRoster(battle);
+        }
+        opponentRosterActor = localActor;
+    }
+
     private static void clearOpponentRoster(Object battle) {
         opponentRosterBattle = battle;
+        opponentRosterActor = null;
         opponentRoster.clear();
-        exactRandomOpponentKeys.clear();
-        exactRandomPreviewBattle = null;
+        loggedBattleForms.clear();
         loggedOpponentRosterBattle = null;
         loggedOpponentRosterSize = -1;
         if (battle != null && previewIsCurrent()) {
             for (PokemonSet preview : previewOpponentRoster.values()) {
-                rememberOpponent(preview);
+                PokemonSet pending = preview.copy();
+                pending.battleDataMode = BattleDataMode.NONE;
+                opponentRoster.put(opponentKey(pending), pending);
             }
             TropimonDamageCalcClient.LOGGER.info("[CalcDBG] team preview attached to battle opponents={}",
                     opponentRoster.size());
@@ -696,32 +641,6 @@ final class CobblemonBattleDataProvider {
 
     private static boolean previewIsCurrent() {
         return !previewOpponentRoster.isEmpty() && System.currentTimeMillis() <= previewOpponentRosterExpiresAt;
-    }
-
-    private static void attachFullRandomPreviewRoster(Object battle) {
-        if (battle == null || !Boolean.TRUE.equals(randomBattleDetected)
-                || exactRandomPreviewBattle == battle || previewOpponentFullRoster.isEmpty()) {
-            return;
-        }
-        if (System.currentTimeMillis() > previewOpponentFullRosterExpiresAt) {
-            previewOpponentFullRoster.clear();
-            previewOpponentFullRosterExpiresAt = 0L;
-            return;
-        }
-        for (PokemonSet preview : previewOpponentFullRoster.values()) {
-            rememberOpponent(preview);
-            exactRandomOpponentKeys.add(opponentKey(preview));
-        }
-        exactRandomPreviewBattle = battle;
-        TropimonDamageCalcClient.LOGGER.info(
-                "[CalcDBG] exact random preview attached opponents={}", exactRandomOpponentKeys.size());
-        previewOpponentFullRoster.clear();
-        previewOpponentFullRosterExpiresAt = 0L;
-    }
-
-    private static boolean hasExactRandomOpponent(PokemonSet pokemon) {
-        return pokemon != null && exactRandomPreviewBattle == opponentRosterBattle
-                && exactRandomOpponentKeys.contains(opponentKey(pokemon));
     }
 
     static BattlePokemonSnapshot activeBattlePokemon(MinecraftClient client) {
@@ -739,9 +658,6 @@ final class CobblemonBattleDataProvider {
             Object localActive = localActives.isEmpty() ? null : localActives.getFirst();
             Object opponentActive = opponentActives.isEmpty() ? null : opponentActives.getFirst();
             boolean randomBattle = isRandomBattle(battle, localActor, client);
-            if (randomBattle) {
-                attachFullRandomPreviewRoster(battle);
-            }
             PokemonSet player = battlePokemonSet(localActive, true, client);
             PokemonSet opponent = battlePokemonSet(opponentActive, false, client);
             PokemonSet playerPartner = localActives.size() > 1
@@ -753,16 +669,21 @@ final class CobblemonBattleDataProvider {
                 applyRandomBattlePlayerEvDefaults(playerPartner);
                 TropimonRandomBattleSets.applyInference(player);
                 TropimonRandomBattleSets.applyInference(playerPartner);
+                TropimonRankedUsageService.clearPrediction(opponent);
+                TropimonRankedUsageService.clearPrediction(opponentPartner);
                 applyRandomBattleOpponentRules(player, opponent);
-                if (!hasExactRandomOpponent(opponent)) {
-                    TropimonRandomBattleSets.applyInference(opponent);
-                }
+                TropimonRandomBattleSets.applyInference(opponent);
                 applyRandomBattleOpponentRules(player, opponentPartner);
-                if (!hasExactRandomOpponent(opponentPartner)) {
-                    TropimonRandomBattleSets.applyInference(opponentPartner);
-                }
+                TropimonRandomBattleSets.applyInference(opponentPartner);
+            } else {
+                markNormalBattleData(player);
+                markNormalBattleData(playerPartner);
+                markNormalBattleData(opponent);
+                markNormalBattleData(opponentPartner);
+                TropimonRankedUsageService.INSTANCE.enrichOpponent(opponent);
+                TropimonRankedUsageService.INSTANCE.enrichOpponent(opponentPartner);
             }
-            resetOpponentRosterIfBattleChanged(battle);
+            resetOpponentRosterIfBattleChanged(battle, localActor);
             rememberOpponent(opponent);
             rememberOpponent(opponentPartner);
             opponent = knownOpponent(opponent);
@@ -798,15 +719,17 @@ final class CobblemonBattleDataProvider {
             Object current = currentBattle(client);
             long now = System.currentTimeMillis();
             if (current != null) {
-                if (current != lifecycleBattle) {
+                Object currentActor = client == null || client.player == null
+                        ? null : localBattleActor(current, client.player.getUuid());
+                if (current != lifecycleBattle || (currentActor != null && currentActor != lifecycleActor)) {
                     lifecycleBattle = current;
+                    lifecycleActor = currentActor;
                     lifecycleBattleWasRandom = false;
                     battleEndSignaled = false;
                 }
                 battleMissingSince = 0L;
                 if (!lifecycleBattleWasRandom && client != null && client.player != null) {
-                    Object actor = localBattleActor(current, client.player.getUuid());
-                    lifecycleBattleWasRandom = actor != null && isRandomBattle(current, actor, client);
+                    lifecycleBattleWasRandom = currentActor != null && isRandomBattle(current, currentActor, client);
                 }
                 return;
             }
@@ -833,6 +756,7 @@ final class CobblemonBattleDataProvider {
     private static void finishBattleLifecycle() {
         boolean resetCalculator = lifecycleBattleWasRandom;
         lifecycleBattle = null;
+        lifecycleActor = null;
         lifecycleBattleWasRandom = false;
         battleEndSignaled = false;
         battleMissingSince = 0L;
@@ -842,16 +766,14 @@ final class CobblemonBattleDataProvider {
         clearOpponentRoster(null);
         previewPlayerRoster.clear();
         previewOpponentRoster.clear();
-        previewOpponentFullRoster.clear();
         capturedPreviewScreen = null;
-        capturedPreviewInformation = null;
         randomBattleIdentity = null;
+        randomBattleActorIdentity = null;
         randomBattleDetected = null;
         randomBattleQueueExpiresAt = 0L;
         randomBattleQueueMatchedIdentity = false;
         randomBattlePreviewConfirmedExpiresAt = 0L;
         previewOpponentRosterExpiresAt = 0L;
-        previewOpponentFullRosterExpiresAt = 0L;
         CobblemonBattleConditionTracker.resetForBattle(null);
         if (resetCalculator) {
             DamageCalcState.shared().resetAfterRandomBattle();
@@ -992,8 +914,9 @@ final class CobblemonBattleDataProvider {
         if (battle == null || localActor == null || client == null) {
             return false;
         }
-        if (randomBattleIdentity != battle) {
+        if (randomBattleIdentity != battle || randomBattleActorIdentity != localActor) {
             randomBattleIdentity = battle;
+            randomBattleActorIdentity = localActor;
             randomBattleDetected = null;
             randomBattleQueueMatchedIdentity = System.currentTimeMillis() <= randomBattleQueueExpiresAt;
             if (randomBattleQueueMatchedIdentity) {
@@ -1117,18 +1040,28 @@ final class CobblemonBattleDataProvider {
         if (player == null || opponent == null) {
             return;
         }
+        opponent.battleDataMode = BattleDataMode.RANDOM;
         opponent.evs.clear();
         opponent.evs.putAll(player.evs);
+        opponent.rankedEvSpread = null;
         opponent.nature = TropimonDex.nature("serious");
         opponent.statsKnown = true;
         opponent.natureKnown = true;
+    }
+
+    private static void markNormalBattleData(PokemonSet pokemon) {
+        if (pokemon != null) {
+            pokemon.battleDataMode = BattleDataMode.NORMAL;
+        }
     }
 
     static void applyRandomBattlePlayerEvDefaults(PokemonSet pokemon) {
         if (pokemon == null) {
             return;
         }
+        pokemon.battleDataMode = BattleDataMode.RANDOM;
         pokemon.evs.replaceAll((stat, value) -> 85);
+        pokemon.rankedEvSpread = null;
         pokemon.statsKnown = true;
     }
 
@@ -1290,29 +1223,33 @@ final class CobblemonBattleDataProvider {
         if (battlePokemon == null) {
             return null;
         }
+        BattleFormObservation form = observeBattleForm(battlePokemon);
+        SpeciesData activeSpecies = speciesFromBattlePokemon(battlePokemon, form);
         if (localPlayer) {
             Object uuid = invokeOptional(battlePokemon, "getUuid");
-            SpeciesData activeSpecies = speciesFromBattlePokemon(battlePokemon);
             PokemonSet partySet = localBattleActorPokemon(activeBattlePokemon, uuid, activeSpecies);
             if (partySet == null) {
                 partySet = localPartyPokemon(client, uuid, activeSpecies);
             }
             if (partySet != null) {
                 if (activeSpecies != null) {
-                    partySet.species = preferSpecificForm(partySet.species, activeSpecies);
+                    partySet.species = form.authoritative() ? activeSpecies
+                            : preferSpecificForm(partySet.species, activeSpecies);
                 }
+                partySet.battleFormObserved = form.authoritative();
                 applyBattleRuntime(partySet, battlePokemon);
                 CobblemonBattleConditionTracker.applyHistory(partySet, true);
                 return partySet;
             }
         }
-        SpeciesData species = speciesFromBattlePokemon(battlePokemon);
+        SpeciesData species = activeSpecies;
         if (species == null) {
             debugParty("battle pokemon not mapped display=" + displayText(invokeOptional(battlePokemon, "getDisplayName", false))
                     + " species=" + text(invokeOptional(invokeOptional(battlePokemon, "getProperties"), "getSpecies")));
             return null;
         }
         PokemonSet set = new PokemonSet(species);
+        set.battleFormObserved = form.authoritative();
         if (localPlayer) {
             set.itemKnown = false;
             set.abilityKnown = false;
@@ -1442,37 +1379,48 @@ final class CobblemonBattleDataProvider {
                         && pokemon.natureKnown && pokemon.statsKnown && pokemon.movesKnown);
     }
 
-    private static SpeciesData speciesFromBattlePokemon(Object battlePokemon) {
+    static BattleFormObservation observeBattleForm(Object battlePokemon) {
         Object properties = invokeOptional(battlePokemon, "getProperties");
         Object speciesObject = invokeOptional(battlePokemon, "getSpecies");
-        LinkedHashSet<String> activeAspects = new LinkedHashSet<>(stringList(invokeOptional(properties, "getAspects")));
-        activeAspects.addAll(stringList(invokeOptional(battlePokemon, "getAspects")));
-        activeAspects.addAll(stringList(readFieldOptional(battlePokemon, "aspects")));
         Object renderState = invokeOptional(battlePokemon, "getState");
-        activeAspects.addAll(stringList(invokeOptional(renderState, "getCurrentAspects")));
-        Object formObject = invokeOptional(properties, "getForm");
-        String formName = text(invokeOptional(formObject, "getName"));
-        if (formName.isBlank()) formName = text(formObject);
-        String liveShowdown = text(invokeOptional(battlePokemon, "showdownId"));
-        if (liveShowdown.isBlank()) liveShowdown = text(invokeOptional(battlePokemon, "getShowdownId"));
-        if (liveShowdown.isBlank()) liveShowdown = text(invokeOptional(speciesObject, "showdownId"));
-        SpeciesData formSpecies = TropimonDex.findFormSpecies(
-                text(invokeOptional(properties, "getSpecies")),
-                formName,
-                liveShowdown,
-                new ArrayList<>(activeAspects)
-        );
-        if (formSpecies == null) {
-            formSpecies = TropimonDex.findFormSpecies(
-                    text(invokeOptional(speciesObject, "showdownId")),
-                    formName,
-                    liveShowdown,
-                    new ArrayList<>(activeAspects)
-            );
+        Object currentAspects = invokeOptional(renderState, "getCurrentAspects");
+        if (!(currentAspects instanceof Iterable<?>)) {
+            currentAspects = invokeOptional(battlePokemon, "getAspects");
         }
+        if (!(currentAspects instanceof Iterable<?>)) {
+            currentAspects = readFieldOptional(battlePokemon, "aspects");
+        }
+        boolean runtimeAspects = currentAspects instanceof Iterable<?>;
+        if (!runtimeAspects) currentAspects = invokeOptional(properties, "getAspects");
+        LinkedHashSet<String> aspects = new LinkedHashSet<>(stringList(currentAspects));
+        String propertyForm = runtimeAspects ? "" : text(invokeOptional(properties, "getForm"));
+
+        // Same resolver as Cobblemon's RenderablePokemon. Even an empty runtime
+        // set is authoritative: updateAspects(emptySet()) reverts dynamic forms.
+        Object resolvedForm = propertyForm.isBlank() ? null
+                : invokeOptional(speciesObject, "getFormByName", propertyForm);
+        if (resolvedForm == null) resolvedForm = invokeOptional(speciesObject, "getForm", aspects);
+        String base = firstNonBlank(text(invokeOptional(speciesObject, "showdownId")),
+                text(invokeOptional(properties, "getSpecies")), text(invokeOptional(speciesObject, "getName")));
+        String formName = firstNonBlank(text(invokeOptional(resolvedForm, "getName")), propertyForm);
+        String showdown = firstNonBlank(formShowdownId(resolvedForm),
+                text(invokeOptional(battlePokemon, "showdownId")),
+                text(invokeOptional(battlePokemon, "getShowdownId")), base);
+        List<String> resolvedAspects = resolvedForm == null
+                ? List.copyOf(aspects) : stringList(invokeOptional(resolvedForm, "getAspects"));
+        return new BattleFormObservation(base, formName, showdown, resolvedAspects,
+                runtimeAspects && resolvedForm != null);
+    }
+
+    private static SpeciesData speciesFromBattlePokemon(Object battlePokemon, BattleFormObservation form) {
+        SpeciesData formSpecies = TropimonDex.findFormSpecies(
+                form.baseSpecies(), form.name(), form.showdownId(), form.aspects());
         if (formSpecies != null) {
+            logBattleForm(battlePokemon, form, formSpecies);
             return formSpecies;
         }
+        Object properties = invokeOptional(battlePokemon, "getProperties");
+        Object speciesObject = invokeOptional(battlePokemon, "getSpecies");
         SpeciesData species = TropimonDex.findSpeciesByQuery(text(invokeOptional(properties, "getSpecies")));
         if (species != null) {
             return species;
@@ -1485,7 +1433,38 @@ final class CobblemonBattleDataProvider {
         if (species != null) {
             return species;
         }
-        return TropimonDex.findSpeciesByDisplayName(displayText(invokeOptional(battlePokemon, "getDisplayName", false)));
+        return TropimonDex.findSpeciesByDisplayName(displayText(invokeOptional(battlePokemon, "getDisplayName")));
+    }
+
+    private static void logBattleForm(Object pokemon, BattleFormObservation form, SpeciesData species) {
+        String uuid = text(invokeOptional(pokemon, "getUuid"));
+        if (uuid.isBlank()) return;
+        String value = species.id() + ":" + form.authoritative();
+        if (value.equals(loggedBattleForms.put(uuid, value))) return;
+        TropimonDamageCalcClient.LOGGER.info(
+                "[CalcDBG] battle form uuid={} species={} form={} aspects={} resolved={} runtime={}",
+                uuid, form.baseSpecies(), form.name(), form.aspects(), species.id(), form.authoritative());
+    }
+
+    record BattleFormObservation(String baseSpecies, String name, String showdownId,
+                                 List<String> aspects, boolean authoritative) {
+        SpeciesData select(Iterable<SpeciesData> candidates) {
+            return TropimonDex.selectFormSpecies(candidates, baseSpecies, name, showdownId, aspects);
+        }
+    }
+
+    private static String formShowdownId(Object form) {
+        return firstNonBlank(text(invokeOptional(form, "showdownId")),
+                text(invokeOptional(form, "formOnlyShowdownId")));
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     static SpeciesData preferSpecificForm(SpeciesData partySpecies, SpeciesData battleSpecies) {
@@ -1740,9 +1719,9 @@ final class CobblemonBattleDataProvider {
     }
 
     private static String abilityName(Object ability) {
-        String display = text(invokeOptional(ability, "getDisplayName"));
+        String display = text(invokeOptional(ability, "getName"));
         if (display.isBlank()) {
-            display = text(invokeOptional(ability, "getName"));
+            display = displayText(invokeOptional(ability, "getDisplayName"));
         }
         return canonicalAbilityName(display);
     }
@@ -1993,25 +1972,22 @@ final class CobblemonBattleDataProvider {
         clearOpponentRoster(null);
         previewPlayerRoster.clear();
         previewOpponentRoster.clear();
-        previewOpponentFullRoster.clear();
-        exactRandomOpponentKeys.clear();
         capturedPreviewScreen = null;
-        capturedPreviewInformation = null;
         loggedPreviewScreen = null;
         loggedRandomPreviewCandidate = null;
         loggedLocalHydration = "";
         randomBattleIdentity = null;
+        randomBattleActorIdentity = null;
         randomBattleDetected = null;
         randomBattleQueueExpiresAt = 0L;
         randomBattleQueueMatchedIdentity = false;
         randomBattlePreviewConfirmedExpiresAt = 0L;
         lifecycleBattle = null;
+        lifecycleActor = null;
         lifecycleBattleWasRandom = false;
         battleEndSignaled = false;
         battleMissingSince = 0L;
         previewOpponentRosterExpiresAt = 0L;
-        previewOpponentFullRosterExpiresAt = 0L;
-        exactRandomPreviewBattle = null;
         CobblemonBattleConditionTracker.resetForBattle(null);
     }
 

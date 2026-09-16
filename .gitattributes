@@ -1,0 +1,15 @@
+.git* export-ignore
+.privacy export-ignore
+.env* export-ignore
+build export-ignore
+run export-ignore
+logs export-ignore
+mods export-ignore
+exports export-ignore
+backups export-ignore
+docs/screenshots export-ignore
+docs/verification-* export-ignore
+mc-*.png export-ignore
+supabase export-ignore
+tropimon-bid-maker export-ignore
+tropimon-paris-bridge export-ignore

@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -156,6 +157,12 @@ record BattlePokemonSnapshot(PokemonSet player, PokemonSet opponent, boolean dou
     }
 }
 
+enum BattleDataMode {
+    NONE,
+    NORMAL,
+    RANDOM
+}
+
 record NatureData(String id, String name, Stat plus, Stat minus) {
     double modifier(Stat stat) {
         if (stat == Stat.HP) {
@@ -173,8 +180,10 @@ record NatureData(String id, String name, Stat plus, Stat minus) {
 
 final class PokemonSet {
     SpeciesData species;
+    BattleDataMode battleDataMode = BattleDataMode.NONE;
     String battleId = "";
     String battleName = "";
+    boolean battleFormObserved;
     int level = 100;
     String item = "None";
     String ability = "None";
@@ -193,6 +202,16 @@ final class PokemonSet {
     final EnumMap<Stat, Integer> ivs = new EnumMap<>(Stat.class);
     final EnumMap<Stat, Integer> boosts = new EnumMap<>(Stat.class);
     final List<MoveData> moves = new ArrayList<>();
+    final Map<String, Double> rankedMoveUsage = new LinkedHashMap<>();
+    final Set<String> observedMoveIds = new LinkedHashSet<>();
+    final Set<String> manualMoveIds = new LinkedHashSet<>();
+    final Set<String> suppressedMoveIds = new LinkedHashSet<>();
+    String rankedProfileKey = "";
+    boolean rankedItemSuggested;
+    boolean rankedAbilitySuggested;
+    boolean rankedNatureSuggested;
+    TropimonRankedUsageService.RankedEvSpread rankedEvSpread;
+    boolean evsManuallyEdited;
     final boolean[] zMoves = new boolean[4];
     boolean battleHistoryKnown;
     int timesHit;
@@ -211,7 +230,12 @@ final class PokemonSet {
     DamageCategory lastDamageCategory = DamageCategory.STATUS;
 
     PokemonSet(SpeciesData species) {
+        this(species, true);
+    }
+
+    private PokemonSet(SpeciesData species, boolean defaults) {
         this.species = species;
+        if (!defaults) return;
         for (Stat stat : Stat.values()) {
             evs.put(stat, 0);
             ivs.put(stat, 31);
@@ -222,9 +246,11 @@ final class PokemonSet {
     }
 
     PokemonSet copy() {
-        PokemonSet copy = new PokemonSet(species);
+        PokemonSet copy = new PokemonSet(species, false);
+        copy.battleDataMode = battleDataMode;
         copy.battleId = battleId;
         copy.battleName = battleName;
+        copy.battleFormObserved = battleFormObserved;
         copy.level = level;
         copy.item = item;
         copy.ability = ability;
@@ -239,14 +265,24 @@ final class PokemonSet {
         copy.status = status;
         copy.currentHp = currentHp;
         copy.observedMaxHp = observedMaxHp;
-        copy.evs.clear();
         copy.evs.putAll(evs);
-        copy.ivs.clear();
         copy.ivs.putAll(ivs);
-        copy.boosts.clear();
         copy.boosts.putAll(boosts);
-        copy.moves.clear();
         copy.moves.addAll(moves);
+        copy.rankedMoveUsage.clear();
+        copy.rankedMoveUsage.putAll(rankedMoveUsage);
+        copy.observedMoveIds.clear();
+        copy.observedMoveIds.addAll(observedMoveIds);
+        copy.manualMoveIds.clear();
+        copy.manualMoveIds.addAll(manualMoveIds);
+        copy.suppressedMoveIds.clear();
+        copy.suppressedMoveIds.addAll(suppressedMoveIds);
+        copy.rankedProfileKey = rankedProfileKey;
+        copy.rankedItemSuggested = rankedItemSuggested;
+        copy.rankedAbilitySuggested = rankedAbilitySuggested;
+        copy.rankedNatureSuggested = rankedNatureSuggested;
+        copy.rankedEvSpread = rankedEvSpread;
+        copy.evsManuallyEdited = evsManuallyEdited;
         System.arraycopy(zMoves, 0, copy.zMoves, 0, zMoves.length);
         copy.battleHistoryKnown = battleHistoryKnown;
         copy.timesHit = timesHit;
@@ -266,6 +302,17 @@ final class PokemonSet {
         return copy;
     }
 
+    boolean canMergeBattleDataFrom(PokemonSet other) {
+        return other != null && (battleDataMode == BattleDataMode.NONE
+                || other.battleDataMode == BattleDataMode.NONE
+                || battleDataMode == other.battleDataMode);
+    }
+
+    void markEvsEdited() {
+        evsManuallyEdited = true;
+        rankedEvSpread = null;
+    }
+
     MoveData moveAt(int slot) {
         return slot >= 0 && slot < moves.size() ? moves.get(slot) : null;
     }
@@ -277,8 +324,19 @@ final class PokemonSet {
         while (moves.size() <= slot) {
             moves.add(null);
         }
+        MoveData previous = moves.get(slot);
+        if (previous != null && (move == null || !previous.id().equals(move.id()))) {
+            manualMoveIds.remove(previous.id());
+            if (rankedMoveUsage.containsKey(previous.id()) && !observedMoveIds.contains(previous.id())) {
+                suppressedMoveIds.add(previous.id());
+            }
+        }
         moves.set(slot, move);
         movesKnown = true;
+        if (move != null) {
+            manualMoveIds.add(move.id());
+            suppressedMoveIds.remove(move.id());
+        }
         if (slot < zMoves.length) {
             zMoves[slot] = false;
         }
@@ -286,6 +344,12 @@ final class PokemonSet {
 
     void deleteMove(int slot) {
         if (slot >= 0 && slot < moves.size()) {
+            MoveData removed = moves.get(slot);
+            if (removed != null) {
+                observedMoveIds.remove(removed.id());
+                manualMoveIds.remove(removed.id());
+                suppressedMoveIds.add(removed.id());
+            }
             moves.set(slot, null);
         }
         if (slot >= 0 && slot < zMoves.length) {
@@ -399,11 +463,6 @@ final class SideConditions {
     String partnerName = "";
     int spreadTargets = 2;
 
-    boolean hasAny() {
-        return reflect || lightScreen || auroraVeil || tailwind || helpingHand || friendGuard || wideGuard
-                || !"none".equals(TropimonDex.normalize(partnerAbility));
-    }
-
     String summary() {
         ArrayList<String> parts = new ArrayList<>();
         if (reflect) parts.add("Reflect");
@@ -489,6 +548,7 @@ record DamageResult(
 }
 
 final class DamageCalcState {
+    private static final Stat[] STATS = Stat.values();
     private static final DamageCalcState SHARED = new DamageCalcState();
 
     PokemonSet attacker = new PokemonSet(TropimonDex.species("abomasnow"));
@@ -504,12 +564,9 @@ final class DamageCalcState {
     String defenderNatureSearch = "";
     String attackerPartnerAbilitySearch = "";
     String defenderPartnerAbilitySearch = "";
-    private long damageCacheFingerprint = Long.MIN_VALUE;
-    private final DamageResult[][] damageCache = new DamageResult[2][4];
+    private final DamageCalculationCache damageCache = new DamageCalculationCache();
 
     DamageCalcState() {
-        attacker.ability = TropimonDex.defaultAbility(attacker.species);
-        defender.ability = TropimonDex.defaultAbility(defender.species);
     }
 
     static DamageCalcState shared() {
@@ -519,8 +576,6 @@ final class DamageCalcState {
     void resetAfterRandomBattle() {
         attacker = new PokemonSet(TropimonDex.species("abomasnow"));
         defender = new PokemonSet(TropimonDex.species("abomasnow"));
-        attacker.ability = TropimonDex.defaultAbility(attacker.species);
-        defender.ability = TropimonDex.defaultAbility(defender.species);
         field = new FieldState();
         attackerSearch = "";
         defenderSearch = "";
@@ -532,7 +587,6 @@ final class DamageCalcState {
         defenderNatureSearch = "";
         attackerPartnerAbilitySearch = "";
         defenderPartnerAbilitySearch = "";
-        damageCacheFingerprint = Long.MIN_VALUE;
     }
 
     PokemonSet selectCatalogSpecies(SpeciesData species, boolean attackerSide) {
@@ -553,10 +607,20 @@ final class DamageCalcState {
         if (slot < 0 || slot >= 4) {
             return null;
         }
-        refreshDamageCache();
-        return damageCache[fromAttacker ? 0 : 1][slot];
+        prepareCalculations();
+        return calculatePreparedMove(fromAttacker, slot);
     }
 
+    // One validation per UI frame; callers must not mutate state between preparation and these reads.
+    void prepareCalculations() { damageCache.prepare(this); }
+
+    DamageResult calculatePreparedMove(boolean fromAttacker, int slot) {
+        return damageCache.calculatePrepared(this, fromAttacker, slot);
+    }
+
+    int preparedStat(boolean fromAttacker, Stat stat) { return damageCache.statPrepared(this, fromAttacker, stat); }
+
+    // Kept for older integrations; exact snapshots, not hashes, govern result reuse.
     long calculationFingerprint() {
         long hash = pokemonFingerprint(attacker);
         hash = mix(hash, pokemonFingerprint(defender));
@@ -576,34 +640,22 @@ final class DamageCalcState {
         return mix(hash, sideFingerprint(field.defenderSide));
     }
 
-    private void refreshDamageCache() {
-        long fingerprint = calculationFingerprint();
-        if (fingerprint == damageCacheFingerprint) {
-            return;
-        }
-        for (int slot = 0; slot < 4; slot++) {
-            damageCache[0][slot] = calculateMoveUncached(true, slot);
-            damageCache[1][slot] = calculateMoveUncached(false, slot);
-        }
-        damageCacheFingerprint = fingerprint;
-    }
-
-    private DamageResult calculateMoveUncached(boolean fromAttacker, int slot) {
-        PokemonSet source = fromAttacker ? attacker : defender;
-        PokemonSet target = fromAttacker ? defender : attacker;
-        SideConditions attackerSide = fromAttacker ? field.attackerSide : field.defenderSide;
-        SideConditions targetSide = fromAttacker ? field.defenderSide : field.attackerSide;
-        MoveData move = source.moveAt(slot);
-        return move == null ? null : DamageCalculator.calculate(source, target, effectiveMove(source, slot), field, attackerSide, targetSide);
-    }
-
     static long pokemonFingerprint(PokemonSet pokemon) {
-        long hash = pokemon.species.id().hashCode();
+        SpeciesData species = pokemon.species;
+        long hash = species.id().hashCode();
+        hash = mix(hash, species.name().hashCode());
+        hash = mix(hash, species.primaryType().ordinal());
+        hash = mix(hash, species.secondaryType().ordinal());
+        hash = mix(hash, species.notFullyEvolved() ? 1 : 0);
+        hash = mix(hash, species.cobblemonSpeciesId().hashCode());
+        hash = mix(hash, species.aspects().hashCode());
+        hash = mix(hash, Double.doubleToLongBits(species.weightKg()));
         hash = mix(hash, pokemon.battleId.hashCode());
+        hash = mix(hash, pokemon.battleDataMode.ordinal());
         hash = mix(hash, pokemon.level);
         hash = mix(hash, pokemon.item.hashCode());
         hash = mix(hash, pokemon.ability.hashCode());
-        hash = mix(hash, pokemon.nature.id().hashCode());
+        hash = mix(hash, pokemon.nature.hashCode());
         hash = mix(hash, pokemon.itemKnown ? 1 : 0);
         hash = mix(hash, pokemon.abilityKnown ? 1 : 0);
         hash = mix(hash, pokemon.natureKnown ? 1 : 0);
@@ -614,7 +666,8 @@ final class DamageCalcState {
         hash = mix(hash, pokemon.status.ordinal());
         hash = mix(hash, pokemon.currentHp);
         hash = mix(hash, pokemon.observedMaxHp);
-        for (Stat stat : Stat.values()) {
+        for (Stat stat : STATS) {
+            hash = mix(hash, species.baseStats().get(stat));
             hash = mix(hash, pokemon.evs.get(stat));
             hash = mix(hash, pokemon.ivs.get(stat));
             hash = mix(hash, pokemon.boosts.get(stat));
@@ -766,16 +819,16 @@ final class DamageCalcState {
     }
 
     void syncSearchFieldsFromSets() {
-        attackerSearch = attacker.species.name();
-        defenderSearch = defender.species.name();
-        attackerItemSearch = attacker.itemKnown ? attacker.item : "";
-        defenderItemSearch = defender.itemKnown ? defender.item : "";
-        attackerAbilitySearch = attacker.abilityKnown ? attacker.ability : "";
-        defenderAbilitySearch = defender.abilityKnown ? defender.ability : "";
-        attackerNatureSearch = attacker.natureKnown ? attacker.nature.name() : "";
-        defenderNatureSearch = defender.natureKnown ? defender.nature.name() : "";
-        attackerPartnerAbilitySearch = field.attackerSide.partnerAbility;
-        defenderPartnerAbilitySearch = field.defenderSide.partnerAbility;
+        attackerSearch = "";
+        defenderSearch = "";
+        attackerItemSearch = "";
+        defenderItemSearch = "";
+        attackerAbilitySearch = "";
+        defenderAbilitySearch = "";
+        attackerNatureSearch = "";
+        defenderNatureSearch = "";
+        attackerPartnerAbilitySearch = "";
+        defenderPartnerAbilitySearch = "";
     }
 
     void setFromBattle(BattlePokemonSnapshot snapshot) {
@@ -785,7 +838,8 @@ final class DamageCalcState {
         if (snapshot.player() != null) {
             PokemonSet livePlayer = snapshot.player();
             boolean sameBattlePokemon = attacker != null && !attacker.battleId.isBlank()
-                    && attacker.battleId.equals(livePlayer.battleId);
+                    && attacker.battleId.equals(livePlayer.battleId)
+                    && attacker.canMergeBattleDataFrom(livePlayer);
             if (sameBattlePokemon && hasCompletePrivateData(attacker) && !hasCompletePrivateData(livePlayer)) {
                 updateBattleRuntime(attacker, livePlayer);
                 mergeRevealedInformation(attacker, livePlayer);
@@ -796,12 +850,18 @@ final class DamageCalcState {
         }
         if (snapshot.opponent() != null) {
             PokemonSet liveOpponent = snapshot.opponent();
+            boolean compatibleMode = defender != null && defender.canMergeBattleDataFrom(liveOpponent);
             boolean sameBattlePokemon = defender != null && !defender.battleId.isBlank()
-                    && defender.battleId.equals(liveOpponent.battleId);
+                    && defender.battleId.equals(liveOpponent.battleId) && compatibleMode;
             boolean configuredSameSpecies = defender != null
-                    && defender.species.id().equals(liveOpponent.species.id()) && hasConfiguredBuild(defender);
+                    && defender.species.id().equals(liveOpponent.species.id())
+                    && compatibleMode && hasConfiguredBuild(defender);
             if (sameBattlePokemon || configuredSameSpecies) {
+                if (!defender.species.id().equals(liveOpponent.species.id())) {
+                    TropimonRankedUsageService.clearPrediction(defender);
+                }
                 defender.species = liveOpponent.species;
+                defender.battleFormObserved = liveOpponent.battleFormObserved;
                 defender.battleId = liveOpponent.battleId;
                 defender.battleName = liveOpponent.battleName;
                 defender.level = liveOpponent.level;
@@ -843,8 +903,6 @@ final class DamageCalcState {
             clearDoublesContext(field.defenderSide);
         }
         syncSearchFieldsFromSets();
-        attackerPartnerAbilitySearch = field.attackerSide.partnerAbility;
-        defenderPartnerAbilitySearch = field.defenderSide.partnerAbility;
     }
 
     private static void clearDoublesContext(SideConditions side) {
@@ -876,6 +934,8 @@ final class DamageCalcState {
 
     private static void updateBattleRuntime(PokemonSet target, PokemonSet source) {
         target.species = source.species;
+        target.battleDataMode = source.battleDataMode;
+        target.battleFormObserved = source.battleFormObserved;
         target.battleId = source.battleId;
         target.battleName = source.battleName;
         target.level = source.level;
@@ -892,31 +952,47 @@ final class DamageCalcState {
     }
 
     private static void mergeRevealedInformation(PokemonSet target, PokemonSet source) {
+        boolean acceptsPrediction = target.rankedProfileKey.isBlank() && !source.rankedProfileKey.isBlank();
+        if (acceptsPrediction && !target.itemKnown) {
+            target.item = source.item;
+            target.rankedItemSuggested = source.rankedItemSuggested;
+        }
+        if (acceptsPrediction && !target.abilityKnown) {
+            target.ability = source.ability;
+            target.rankedAbilitySuggested = source.rankedAbilitySuggested;
+        }
+        if (acceptsPrediction && !target.natureKnown) {
+            target.nature = source.nature;
+            target.rankedNatureSuggested = source.rankedNatureSuggested;
+        }
         if (!target.itemKnown && source.itemKnown) {
             target.item = source.item;
             target.itemKnown = true;
+            target.rankedItemSuggested = false;
         }
         if (!target.abilityKnown && source.abilityKnown) {
             target.ability = source.ability;
             target.abilityKnown = true;
+            target.rankedAbilitySuggested = false;
         }
         if (!target.natureKnown && source.natureKnown) {
             target.nature = source.nature;
             target.natureKnown = true;
+            target.rankedNatureSuggested = false;
         }
         if (source.statsKnown && (!target.statsKnown
                 || (hasEightyFiveEvSpread(source) && hasNoConfiguredEvs(target)))) {
-            target.evs.clear();
-            target.evs.putAll(source.evs);
+            if (!target.evsManuallyEdited) {
+                target.evs.clear();
+                target.evs.putAll(source.evs);
+            }
+            target.rankedEvSpread = null;
             target.ivs.clear();
             target.ivs.putAll(source.ivs);
             target.statsKnown = true;
         }
-        if (!target.movesKnown && source.movesKnown) {
-            target.moves.clear();
-            target.moves.addAll(source.moves);
-            target.movesKnown = true;
-        }
+        TropimonRankedUsageService.mergeEvSuggestion(target, source);
+        TropimonRankedUsageService.mergeMoveKnowledge(target, source);
     }
 
     private static boolean hasEightyFiveEvSpread(PokemonSet pokemon) {
@@ -944,9 +1020,9 @@ final class DamageCalcState {
     }
 
     private static boolean hasConfiguredBuild(PokemonSet pokemon) {
-        if (!"none".equals(TropimonDex.normalize(pokemon.item))) return true;
-        if (!pokemon.nature.id().equals("serious")) return true;
-        if (!TropimonDex.normalize(pokemon.ability)
+        if (pokemon.itemKnown && !"none".equals(TropimonDex.normalize(pokemon.item))) return true;
+        if (pokemon.natureKnown && !pokemon.nature.id().equals("serious")) return true;
+        if (pokemon.abilityKnown && !TropimonDex.normalize(pokemon.ability)
                 .equals(TropimonDex.normalize(TropimonDex.defaultAbility(pokemon.species)))) return true;
         for (Stat stat : Stat.values()) {
             if (pokemon.evs.get(stat) != 0 || pokemon.ivs.get(stat) != 31) return true;
@@ -967,6 +1043,7 @@ final class DamageCalcState {
     }
 
     static void presetEvs(PokemonSet pokemon, EvPreset preset) {
+        pokemon.markEvsEdited();
         for (Map.Entry<Stat, Integer> entry : pokemon.evs.entrySet()) {
             entry.setValue(0);
         }

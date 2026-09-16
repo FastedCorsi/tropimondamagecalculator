@@ -24,3 +24,22 @@ tools/cobblemon-lang-audit/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Private local material: preserve on disk, never publish.
+.env
+.env.*
+**/.env
+**/.env.*
+.privacy/
+exports/
+backups/
+*.log
+*.bak
+*.key
+*.pem
+/mc-*.png
+/docs/screenshots/
+/docs/verification-*/
+/supabase/
+/tropimon-bid-maker/
+/tropimon-paris-bridge/

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 public final class DamageCalcScreen extends Screen {
     private static final int PANEL = 280;
@@ -44,7 +45,13 @@ public final class DamageCalcScreen extends Screen {
     private final EnumMap<SearchKind, CachedSuggestions> suggestionCache = new EnumMap<>(SearchKind.class);
     private final ButtonWidget[][] damageButtons = new ButtonWidget[2][4];
     private ButtonWidget closeButton;
-    private long renderedDamageFingerprint = Long.MIN_VALUE;
+    private final DamageResult[][] renderedDamage = new DamageResult[2][4];
+    private Language renderedDamageLanguage;
+    private final String[][] statTexts = new String[2][6];
+    private final int[][] statValues = new int[2][6];
+    private final int[][] statWidths = new int[2][6];
+    private final int[][] statColors = new int[2][6];
+    private final int[] statLevels = new int[2];
     private SearchKind activeKind;
     private SearchKind openKind;
     private int suggestionScroll;
@@ -93,6 +100,7 @@ public final class DamageCalcScreen extends Screen {
         for (ButtonWidget[] side : damageButtons) {
             java.util.Arrays.fill(side, null);
         }
+        for (String[] side : statTexts) java.util.Arrays.fill(side, null);
         int panelX = (width - panelWidth()) / 2;
         int panelW = panelWidth();
         int leftX = leftX(panelX, panelW);
@@ -118,18 +126,20 @@ public final class DamageCalcScreen extends Screen {
         }
 
         int moveY = moveY(editorY);
+        state.prepareCalculations();
         if (showMoves) {
             addMoveEditor(state.attacker, leftX, moveY, true);
             addMoveEditor(state.defender, rightX, moveY, false);
         }
-        renderedDamageFingerprint = state.calculationFingerprint();
+        renderedDamageLanguage = Language.getInstance();
     }
 
     private void addMoveEditor(PokemonSet source, int x, int y, boolean fromAttacker) {
         for (int slot = 0; slot < 4; slot++) {
             int moveSlot = slot;
             MoveData move = source.moveAt(slot);
-            DamageResult result = state.calculateMove(fromAttacker, slot);
+            DamageResult result = state.calculatePreparedMove(fromAttacker, slot);
+            renderedDamage[fromAttacker ? 0 : 1][slot] = result;
             String value = move == null ? "" : moveDisplayName(DamageCalcState.displayMove(source, slot));
             String placeholder = tr("screen.tropimon_damage_calc.search.move", slot + 1);
             TextFieldWidget moveField = addSearchField(moveKind(fromAttacker, slot), x, y + slot * MOVE_ROW,
@@ -169,8 +179,7 @@ public final class DamageCalcScreen extends Screen {
         String pokemonSearch = attacker ? state.attackerSearch : state.defenderSearch;
         int selectorX = x + 64;
         addSearchField(pokemonKind, selectorX, y, 146,
-                localizedSelectionValue(pokemonSearch, pokemon.species.name(), speciesDisplayName(pokemon.species)),
-                tr("screen.tropimon_damage_calc.search.pokemon"),
+                pokemonSearch, speciesDisplayName(pokemon.species),
                 value -> {
                     if (attacker) state.attackerSearch = value;
                     else state.defenderSearch = value;
@@ -180,8 +189,8 @@ public final class DamageCalcScreen extends Screen {
 
         String itemSearch = attacker ? state.attackerItemSearch : state.defenderItemSearch;
         TextFieldWidget itemField = addSearchField(itemKind, selectorX, y + 22, 194,
-                localizedSelectionValue(itemSearch, pokemon.item, itemDisplayName(pokemon.item)),
-                tr("screen.tropimon_damage_calc.search.item"),
+                itemSearch, selectionPlaceholder(pokemon.item, itemDisplayName(pokemon.item),
+                        "screen.tropimon_damage_calc.search.item"),
                 value -> {
                     if (attacker) state.attackerItemSearch = value;
                     else state.defenderItemSearch = value;
@@ -191,16 +200,21 @@ public final class DamageCalcScreen extends Screen {
 
         String abilitySearch = attacker ? state.attackerAbilitySearch : state.defenderAbilitySearch;
         TextFieldWidget abilityField = addSearchField(abilityKind, selectorX, y + 44, 78,
-                localizedSelectionValue(abilitySearch, pokemon.ability, abilityDisplayName(pokemon.ability)),
-                tr("screen.tropimon_damage_calc.search.ability"),
+                abilitySearch, selectionPlaceholder(pokemon.ability, abilityDisplayName(pokemon.ability),
+                        "screen.tropimon_damage_calc.search.ability"),
                 value -> {
                     if (attacker) state.attackerAbilitySearch = value;
                     else state.defenderAbilitySearch = value;
                 });
         abilityField.setTooltip(Tooltip.of(Text.literal(abilityDescription(pokemon.ability))));
         addClearButton(selectorX + 80, y + 44, abilityKind);
+        String natureSearch = attacker ? state.attackerNatureSearch : state.defenderNatureSearch;
         TextFieldWidget natureField = addSearchField(natureKind, x + 168, y + 44, 88,
-                pokemon.natureKnown ? natureDisplayName(pokemon.nature) : "", tr("screen.tropimon_damage_calc.search.nature"),
+                natureSearch,
+                (pokemon.natureKnown && !"serious".equals(pokemon.nature.id()))
+                        || pokemon.rankedNatureSuggested
+                        ? natureDisplayName(pokemon.nature)
+                        : tr("screen.tropimon_damage_calc.search.nature"),
                 value -> {
                     if (attacker) state.attackerNatureSearch = value;
                     else state.defenderNatureSearch = value;
@@ -254,9 +268,9 @@ public final class DamageCalcScreen extends Screen {
             String partnerSearch = attacker
                     ? state.attackerPartnerAbilitySearch : state.defenderPartnerAbilitySearch;
             TextFieldWidget partnerField = addSearchField(partnerAbilityKind, x, y + 88, 140,
-                    localizedSelectionValue(partnerSearch, side.partnerAbility,
-                            abilityDisplayName(side.partnerAbility)),
-                    tr("screen.tropimon_damage_calc.search.partner_ability"), value -> {
+                    partnerSearch, selectionPlaceholder(side.partnerAbility,
+                            abilityDisplayName(side.partnerAbility),
+                            "screen.tropimon_damage_calc.search.partner_ability"), value -> {
                         if (attacker) state.attackerPartnerAbilitySearch = value;
                         else state.defenderPartnerAbilitySearch = value;
                     });
@@ -285,10 +299,15 @@ public final class DamageCalcScreen extends Screen {
         for (int i = 0; i < STATS.length; i++) {
             Stat stat = STATS[i];
             int rowY = statY + i * ROW;
-            addButton(x, rowY, 32, 16, statLabel(stat), button -> {
+            ButtonWidget statButton = addButton(x, rowY, 32, 16,
+                    natureStatLabel(pokemon.nature, stat), button -> {
             });
+            if (pokemon.natureKnown && (stat == pokemon.nature.plus() || stat == pokemon.nature.minus())) {
+                statButton.setTooltip(Tooltip.of(Text.literal(natureDescription(pokemon.nature))));
+            }
             addNumberField(x + 36, rowY, 28, pokemon.evs.get(stat), 0, 252, true, value -> {
                 pokemon.evs.put(stat, value);
+                pokemon.markEvsEdited();
                 if (stat == Stat.HP) {
                     pokemon.currentHp = -1;
                     pokemon.observedMaxHp = -1;
@@ -539,6 +558,7 @@ public final class DamageCalcScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        state.prepareCalculations();
         renderBackground(context, mouseX, mouseY, delta);
         int panelW = panelWidth();
         int panelX = (width - panelW) / 2;
@@ -561,12 +581,12 @@ public final class DamageCalcScreen extends Screen {
             int statOffset = state.field.doubles ? 22 : 0;
             drawStatHeaders(context, leftX, editorY + 110 + statOffset);
             drawStatHeaders(context, rightX, editorY + 110 + statOffset);
-            drawStatTotals(context, state.attacker, state.field.attackerSide, leftX, editorY + 120 + statOffset);
-            drawStatTotals(context, state.defender, state.field.defenderSide, rightX, editorY + 120 + statOffset);
+            drawStatTotals(context, true, leftX, editorY + 120 + statOffset);
+            drawStatTotals(context, false, rightX, editorY + 120 + statOffset);
         }
         if (showMoves) {
-            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", state.defender.species.name()), leftX, moveY - 11, PANEL, 0xFFFFFF55);
-            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", state.attacker.species.name()), rightX, moveY - 11, PANEL, 0xFFFFFF55);
+            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", speciesDisplayName(state.defender.species)), leftX, moveY - 11, PANEL, 0xFFFFFF55);
+            drawTrimmed(context, tr("screen.tropimon_damage_calc.moves_to", speciesDisplayName(state.attacker.species)), rightX, moveY - 11, PANEL, 0xFFFFFF55);
         }
         refreshDamageButtons();
 
@@ -577,13 +597,23 @@ public final class DamageCalcScreen extends Screen {
             drawActiveZMoveButtons(context, leftX, rightX, moveY);
         }
         drawSearchSuggestions(context, mouseX, mouseY);
+        if (showStats && openKind == null) {
+            int headerY = editorY + 110 + (state.field.doubles ? 22 : 0);
+            drawEvSuggestionTooltip(context, state.attacker, leftX, headerY, mouseX, mouseY);
+            drawEvSuggestionTooltip(context, state.defender, rightX, headerY, mouseX, mouseY);
+        }
+    }
+
+    private void drawEvSuggestionTooltip(DrawContext context, PokemonSet pokemon, int x, int y, int mouseX, int mouseY) {
+        if (mouseX < x + 36 || mouseX >= x + 64 || mouseY < y || mouseY >= y + 10 + 6 * ROW
+                || pokemon.statsKnown || pokemon.evsManuallyEdited || pokemon.rankedEvSpread == null
+                || !pokemon.rankedEvSpread.matches(pokemon)) return;
+        context.drawTooltip(textRenderer, Text.translatable("screen.tropimon_damage_calc.ranked_evs",
+                String.format(Locale.ROOT, "%.2f", pokemon.rankedEvSpread.usage())), mouseX, mouseY);
     }
 
     private void refreshDamageButtons() {
-        long fingerprint = state.calculationFingerprint();
-        if (fingerprint == renderedDamageFingerprint) {
-            return;
-        }
+        Language language = Language.getInstance();
         for (int side = 0; side < damageButtons.length; side++) {
             boolean fromAttacker = side == 0;
             for (int slot = 0; slot < damageButtons[side].length; slot++) {
@@ -591,14 +621,14 @@ public final class DamageCalcScreen extends Screen {
                 if (button == null) {
                     continue;
                 }
-                DamageResult result = state.calculateMove(fromAttacker, slot);
+                DamageResult result = state.calculatePreparedMove(fromAttacker, slot);
+                if (result == renderedDamage[side][slot] && language == renderedDamageLanguage) continue;
+                renderedDamage[side][slot] = result;
                 button.setMessage(Text.literal(result == null ? "-" : damageRange(result)));
-                if (result != null) {
-                    button.setTooltip(Tooltip.of(Text.literal(damageTooltip(result))));
-                }
+                button.setTooltip(result == null ? null : Tooltip.of(Text.literal(damageTooltip(result))));
             }
         }
-        renderedDamageFingerprint = fingerprint;
+        renderedDamageLanguage = language;
     }
 
     private void drawActiveButtons(DrawContext context) {
@@ -643,19 +673,18 @@ public final class DamageCalcScreen extends Screen {
     private void drawPokemonInfo(DrawContext context, PokemonSet pokemon, int x, int y,
                                  String animationSlot) {
         drawPokemonTexture(context, pokemon, x, y, animationSlot);
-        drawTypeIcons(context, pokemon.defensiveTypes(), x + 214, y, 18);
+        drawTypeIcons(context, pokemon, x + 214, y, 18);
     }
 
-    private int drawTypeIcons(DrawContext context, List<PokeType> types, int x, int y, int size) {
-        int currentX = x;
-        for (PokeType type : types) {
-            if (type == PokeType.NONE) {
-                continue;
-            }
-            TypeIconRenderer.draw(context, type, currentX, y, size);
-            currentX += size + 3;
+    private void drawTypeIcons(DrawContext context, PokemonSet pokemon, int x, int y, int size) {
+        boolean tera = pokemon.terastallized && pokemon.teraType != PokeType.NONE;
+        PokeType first = tera ? pokemon.teraType : pokemon.species.primaryType();
+        PokeType second = tera ? PokeType.NONE : pokemon.species.secondaryType();
+        if (first != PokeType.NONE) {
+            TypeIconRenderer.draw(context, first, x, y, size);
+            x += size + 3;
         }
-        return currentX;
+        if (second != PokeType.NONE && second != first) TypeIconRenderer.draw(context, second, x, y, size);
     }
 
     private void drawPokemonTexture(DrawContext context, PokemonSet pokemon, int x, int y,
@@ -684,17 +713,22 @@ public final class DamageCalcScreen extends Screen {
         context.drawCenteredTextWithShadow(textRenderer, Text.literal("Total"), x + 170, y, color);
     }
 
-    private void drawStatTotals(DrawContext context, PokemonSet pokemon, SideConditions side, int x, int y) {
+    private void drawStatTotals(DrawContext context, boolean fromAttacker, int x, int y) {
+        int side = fromAttacker ? 0 : 1;
+        int level = (fromAttacker ? state.attacker : state.defender).level;
         for (int index = 0; index < STATS.length; index++) {
             Stat stat = STATS[index];
-            int value = stat == Stat.HP
-                    ? pokemon.maxHp()
-                    : DamageCalculator.displayedStat(pokemon, stat, state.field, side);
-            String text = String.valueOf(value);
-            int textX = x + 170 - textRenderer.getWidth(text) / 2;
-            context.drawTextWithShadow(textRenderer, text, textX, y + index * ROW + 4,
-                    statValueColor(stat, value, pokemon.level));
+            int value = state.preparedStat(fromAttacker, stat);
+            if (statTexts[side][index] == null || statValues[side][index] != value || statLevels[side] != level) {
+                statValues[side][index] = value;
+                statTexts[side][index] = String.valueOf(value);
+                statWidths[side][index] = textRenderer.getWidth(statTexts[side][index]);
+                statColors[side][index] = statValueColor(stat, value, level);
+            }
+            context.drawTextWithShadow(textRenderer, statTexts[side][index], x + 170 - statWidths[side][index] / 2,
+                    y + index * ROW + 4, statColors[side][index]);
         }
+        statLevels[side] = level;
     }
 
     @Override
@@ -951,9 +985,9 @@ public final class DamageCalcScreen extends Screen {
                  DEFENDER_MOVE_0, DEFENDER_MOVE_1, DEFENDER_MOVE_2, DEFENDER_MOVE_3 -> 220;
             case ATTACKER_ITEM, DEFENDER_ITEM -> field.widget.getWidth();
             case ATTACKER_ABILITY, DEFENDER_ABILITY,
-                 ATTACKER_PARTNER_ABILITY, DEFENDER_PARTNER_ABILITY,
-                 ATTACKER_NATURE, DEFENDER_NATURE ->
+                 ATTACKER_PARTNER_ABILITY, DEFENDER_PARTNER_ABILITY ->
                     Math.max(field.widget.getWidth(), 150);
+            case ATTACKER_NATURE, DEFENDER_NATURE -> Math.max(field.widget.getWidth(), 180);
         };
         return Math.min(width, this.width - field.widget.getX() - 8);
     }
@@ -1172,7 +1206,7 @@ public final class DamageCalcScreen extends Screen {
             if (nature.plus() == null && nature.minus() == null && !"serious".equals(nature.id())) continue;
             String display = natureDisplayName(nature);
             if (!matches(nature.name(), query) && !matches(display, query) && !matches(nature.id(), query)) continue;
-            suggestions.add(new Suggestion(display, () -> selectNature(nature, attacker)));
+            suggestions.add(new Suggestion(natureSuggestionLabel(nature), () -> selectNature(nature, attacker)));
         }
         sortSuggestions(suggestions);
         return suggestions;
@@ -1194,24 +1228,17 @@ public final class DamageCalcScreen extends Screen {
 
     private void selectSpecies(SpeciesData species, boolean attacker) {
         TropimonDamageCalcClient.debug("selectSpecies side=" + (attacker ? "attacker" : "defender") + " species=" + species.name());
-        PokemonSet pokemon = state.selectCatalogSpecies(species, attacker);
-        String megaStone = TropimonDex.megaStoneForSpecies(species);
+        state.selectCatalogSpecies(species, attacker);
         if (attacker) {
-            state.attackerSearch = speciesDisplayName(species);
-            state.attackerItemSearch = itemDisplayName(pokemon.item);
-            state.attackerAbilitySearch = abilityDisplayName(pokemon.ability);
-            state.attackerNatureSearch = natureDisplayName(pokemon.nature);
-            if (megaStone != null) {
-                state.attackerItemSearch = megaStone;
-            }
+            state.attackerSearch = "";
+            state.attackerItemSearch = "";
+            state.attackerAbilitySearch = "";
+            state.attackerNatureSearch = "";
         } else {
-            state.defenderSearch = speciesDisplayName(species);
-            state.defenderItemSearch = itemDisplayName(pokemon.item);
-            state.defenderAbilitySearch = abilityDisplayName(pokemon.ability);
-            state.defenderNatureSearch = natureDisplayName(pokemon.nature);
-            if (megaStone != null) {
-                state.defenderItemSearch = megaStone;
-            }
+            state.defenderSearch = "";
+            state.defenderItemSearch = "";
+            state.defenderAbilitySearch = "";
+            state.defenderNatureSearch = "";
         }
     }
 
@@ -1224,16 +1251,16 @@ public final class DamageCalcScreen extends Screen {
         }
         if (attacker) {
             state.attacker = copy;
-            state.attackerSearch = speciesDisplayName(copy.species);
-            state.attackerItemSearch = copy.itemKnown ? itemDisplayName(copy.item) : "";
-            state.attackerAbilitySearch = copy.abilityKnown ? abilityDisplayName(copy.ability) : "";
-            state.attackerNatureSearch = copy.natureKnown ? natureDisplayName(copy.nature) : "";
+            state.attackerSearch = "";
+            state.attackerItemSearch = "";
+            state.attackerAbilitySearch = "";
+            state.attackerNatureSearch = "";
         } else {
             state.defender = copy;
-            state.defenderSearch = speciesDisplayName(copy.species);
-            state.defenderItemSearch = copy.itemKnown ? itemDisplayName(copy.item) : "";
-            state.defenderAbilitySearch = copy.abilityKnown ? abilityDisplayName(copy.ability) : "";
-            state.defenderNatureSearch = copy.natureKnown ? natureDisplayName(copy.nature) : "";
+            state.defenderSearch = "";
+            state.defenderItemSearch = "";
+            state.defenderAbilitySearch = "";
+            state.defenderNatureSearch = "";
         }
     }
 
@@ -1251,11 +1278,13 @@ public final class DamageCalcScreen extends Screen {
         if (attacker) {
             state.attacker.item = item;
             state.attacker.itemKnown = true;
-            state.attackerItemSearch = item;
+            state.attacker.rankedItemSuggested = false;
+            state.attackerItemSearch = "";
         } else {
             state.defender.item = item;
             state.defender.itemKnown = true;
-            state.defenderItemSearch = item;
+            state.defender.rankedItemSuggested = false;
+            state.defenderItemSearch = "";
         }
     }
 
@@ -1273,11 +1302,13 @@ public final class DamageCalcScreen extends Screen {
         if (attacker) {
             state.attacker.ability = ability;
             state.attacker.abilityKnown = true;
-            state.attackerAbilitySearch = ability;
+            state.attacker.rankedAbilitySuggested = false;
+            state.attackerAbilitySearch = "";
         } else {
             state.defender.ability = ability;
             state.defender.abilityKnown = true;
-            state.defenderAbilitySearch = ability;
+            state.defender.rankedAbilitySuggested = false;
+            state.defenderAbilitySearch = "";
         }
     }
 
@@ -1294,8 +1325,8 @@ public final class DamageCalcScreen extends Screen {
     private void selectPartnerAbility(String ability, boolean attacker) {
         SideConditions side = sideFor(attacker);
         side.partnerAbility = ability;
-        if (attacker) state.attackerPartnerAbilitySearch = abilityDisplayName(ability);
-        else state.defenderPartnerAbilitySearch = abilityDisplayName(ability);
+        if (attacker) state.attackerPartnerAbilitySearch = "";
+        else state.defenderPartnerAbilitySearch = "";
     }
 
     private boolean selectPartnerAbilityByQuery(String query, boolean attacker) {
@@ -1310,11 +1341,13 @@ public final class DamageCalcScreen extends Screen {
         if (attacker) {
             state.attacker.nature = nature;
             state.attacker.natureKnown = true;
-            state.attackerNatureSearch = natureDisplayName(nature);
+            state.attacker.rankedNatureSuggested = false;
+            state.attackerNatureSearch = "";
         } else {
             state.defender.nature = nature;
             state.defender.natureKnown = true;
-            state.defenderNatureSearch = natureDisplayName(nature);
+            state.defender.rankedNatureSuggested = false;
+            state.defenderNatureSearch = "";
         }
     }
 
@@ -1580,6 +1613,20 @@ public final class DamageCalcScreen extends Screen {
         };
     }
 
+    static String natureStatLabel(NatureData nature, Stat stat) {
+        String label = statLabel(stat);
+        if (nature == null || stat == Stat.HP) {
+            return label;
+        }
+        if (stat == nature.plus()) {
+            return label + "+";
+        }
+        if (stat == nature.minus()) {
+            return label + "-";
+        }
+        return label;
+    }
+
     private static int statValueColor(Stat stat, int value, int level) {
         double scale = Math.max(0.05, level / 100.0);
         int low = stat == Stat.HP ? Math.max(18, (int) Math.round(180 * scale)) : Math.max(8, (int) Math.round(80 * scale));
@@ -1637,12 +1684,20 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private static String natureDescription(NatureData nature) {
-        String translated = translatedFirst("cobblemon.nature." + nature.id() + ".desc", "nature." + nature.id() + ".desc");
-        if (!translated.isBlank()) return translated;
+        String display = natureDisplayName(nature);
         if (nature.plus() == null || nature.minus() == null) {
-            return tr("description.tropimon_damage_calc.nature.neutral", nature.name());
+            return tr("description.tropimon_damage_calc.nature.neutral", display);
         }
-        return tr("description.tropimon_damage_calc.nature.changed", nature.name(),
+        return tr("description.tropimon_damage_calc.nature.changed", display,
+                statLabel(nature.plus()), statLabel(nature.minus()));
+    }
+
+    private static String natureSuggestionLabel(NatureData nature) {
+        String display = natureDisplayName(nature);
+        if (nature.plus() == null || nature.minus() == null) {
+            return tr("screen.tropimon_damage_calc.nature.neutral", display);
+        }
+        return tr("screen.tropimon_damage_calc.nature.changed", display,
                 statLabel(nature.plus()), statLabel(nature.minus()));
     }
 
@@ -1657,19 +1712,71 @@ public final class DamageCalcScreen extends Screen {
         return translated.isBlank() ? type.displayName() : translated;
     }
 
-    private static String localizedSelectionValue(String search, String canonical, String localized) {
-        String normalizedSearch = TropimonDex.normalize(search);
-        return normalizedSearch.isBlank() || normalizedSearch.equals(TropimonDex.normalize(canonical))
-                || normalizedSearch.equals(TropimonDex.normalize(localized)) ? localized : search;
+    private static String selectionPlaceholder(String canonical, String localized, String fallbackKey) {
+        String normalized = TropimonDex.normalize(canonical);
+        return normalized.isBlank() || "none".equals(normalized) ? tr(fallbackKey) : localized;
     }
 
     private static String speciesDisplayName(SpeciesData species) {
-        String direct = translatedFirst("cobblemon.species." + species.id() + ".name");
+        return localizedSpeciesDisplayName(species, key -> translatedFirst(key));
+    }
+
+    static String localizedSpeciesDisplayName(SpeciesData species, Function<String, String> translation) {
+        String speciesId = TropimonDex.normalize(species.id());
+        String baseId = TropimonDex.normalize(species.cobblemonSpeciesId());
+        String direct = translation.apply("cobblemon.species." + speciesId + ".name");
         if (!direct.isBlank()) {
             return direct;
         }
-        String base = translatedFirst("cobblemon.species." + species.cobblemonSpeciesId() + ".name");
-        return species.id().equals(species.cobblemonSpeciesId()) && !base.isBlank() ? base : species.name();
+        String base = translation.apply("cobblemon.species." + baseId + ".name");
+        if (speciesId.equals(baseId)) {
+            return base.isBlank() ? species.name() : base;
+        }
+        String localizedBase = base.isBlank() ? baseSpeciesName(species) : base;
+        for (String key : formTranslationKeys(speciesId, baseId, species.aspects())) {
+            String form = translation.apply(key);
+            if (!form.isBlank()) {
+                return localizedBase + " (" + form.trim() + ")";
+            }
+        }
+        return species.name();
+    }
+
+    private static String baseSpeciesName(SpeciesData species) {
+        String name = species.name();
+        String id = TropimonDex.normalize(species.cobblemonSpeciesId());
+        int separator = name.indexOf(' ');
+        return separator > 0 && !TropimonDex.normalize(name).equals(id) ? name.substring(0, separator) : name;
+    }
+
+    static List<String> formTranslationKeys(String speciesId, String baseId, List<String> aspects) {
+        ArrayList<String> keys = new ArrayList<>();
+        if (!baseId.isBlank() && speciesId.startsWith(baseId) && speciesId.length() > baseId.length()) {
+            keys.add("cobblemon.ui.pokedex.info.form." + baseId + "-" + speciesId.substring(baseId.length()));
+        }
+        for (String aspect : aspects == null ? List.<String>of() : aspects) {
+            String suffix = formSuffix(aspect);
+            String key = "cobblemon.ui.pokedex.info.form." + baseId + "-" + suffix;
+            if (!suffix.isBlank() && !keys.contains(key)) {
+                keys.add(key);
+            }
+        }
+        keys.add("cobblemon.ui.pokedex.info.form." + baseId);
+        return keys;
+    }
+
+    private static String formSuffix(String raw) {
+        String suffix = TropimonDex.normalize(raw);
+        suffix = switch (suffix) {
+            case "alolan" -> "alola";
+            case "galarian" -> "galar";
+            case "hisuian" -> "hisui";
+            case "paldean" -> "paldea";
+            default -> suffix;
+        };
+        if (suffix.endsWith("forme")) suffix = suffix.substring(0, suffix.length() - "forme".length());
+        else if (suffix.endsWith("form")) suffix = suffix.substring(0, suffix.length() - "form".length());
+        return suffix;
     }
 
     private static String itemDisplayName(String item) {

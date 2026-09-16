@@ -7,7 +7,7 @@ import net.minecraft.util.Identifier;
 /** Draws only the frame from Tropimon's navigator panel, keeping the world visible inside. */
 final class TropimonFrameRenderer {
     private static final Identifier TEXTURE = Identifier.of(
-            "tropimodclient", "guis/navigator/navmain/navigator.png");
+            "tropimon_damage_calc", "textures/gui/navigator_frame.png");
     private static final int TEXTURE_WIDTH = 345;
     private static final int TEXTURE_HEIGHT = 205;
     private static final int LEFT = 16;

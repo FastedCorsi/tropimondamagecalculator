@@ -395,7 +395,7 @@ final class CobblemonBattleConditionTracker {
         }
         MoveData revealedMove = TropimonDex.findMoveByQuery(moveId);
         if (revealedMove != null) {
-            boolean newlyRevealed = revealMove(pokemon, revealedMove);
+            boolean newlyRevealed = revealMove(pokemon, revealedMove, side == BattleSide.OPPONENT);
             rememberOpponentBuild(side, pokemon);
             if (side == BattleSide.OPPONENT && newlyRevealed) {
                 TropimonDamageCalcClient.LOGGER.info("[CalcDBG] opponent move revealed pokemon={} move={}",
@@ -455,6 +455,7 @@ final class CobblemonBattleConditionTracker {
         boolean changed = !pokemon.abilityKnown || !TropimonDex.normalize(pokemon.ability).equals(TropimonDex.normalize(ability));
         pokemon.ability = ability;
         pokemon.abilityKnown = true;
+        pokemon.rankedAbilitySuggested = false;
         rememberOpponentBuild(side, pokemon);
         return changed;
     }
@@ -481,6 +482,7 @@ final class CobblemonBattleConditionTracker {
                 || !TropimonDex.normalize(pokemon.item).equals(TropimonDex.normalize(effectiveItem));
         pokemon.item = effectiveItem;
         pokemon.itemKnown = true;
+        pokemon.rankedItemSuggested = false;
         rememberOpponentBuild(side, pokemon);
         return changed;
     }
@@ -554,7 +556,10 @@ final class CobblemonBattleConditionTracker {
         return "";
     }
 
-    private static boolean revealMove(PokemonSet pokemon, MoveData move) {
+    private static boolean revealMove(PokemonSet pokemon, MoveData move, boolean rankedOpponent) {
+        if (rankedOpponent) {
+            return TropimonRankedUsageService.observeMove(pokemon, move);
+        }
         for (MoveData known : pokemon.moves) {
             if (known != null && known.id().equals(move.id())) {
                 pokemon.movesKnown = true;

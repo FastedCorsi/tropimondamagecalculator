@@ -4,9 +4,7 @@
   "version": "${version}",
   "name": "Tropimon Damage Calculator",
   "description": "Client-side Cobblemon damage calculator for Tropimon.",
-  "authors": [
-    "Julien"
-  ],
+  "authors": ["By FastedCorsi"],
   "license": "All-Rights-Reserved",
   "environment": "client",
   "entrypoints": {
@@ -21,7 +19,7 @@
     "fabricloader": ">=0.16.0",
     "minecraft": "1.21.1",
     "fabric-api": "*",
-    "cobblemon": ">=1.7.2 <1.8.0"
+    "cobblemon": ">=1.7.2"
   },
   "suggests": {
     "modmenu": "*"

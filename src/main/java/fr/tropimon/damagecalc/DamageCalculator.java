@@ -1276,6 +1276,12 @@ final class DamageCalculator {
     private static double stabModifier(PokemonSet attacker, PokeType moveType, List<String> notes) {
         boolean originalStab = attacker.species.types().contains(moveType);
         boolean teraStab = attacker.terastallized && attacker.teraType == moveType;
+        boolean proteanStab = !attacker.terastallized && moveType != PokeType.NONE
+                && (hasAbility(attacker, "Protean") || hasAbility(attacker, "Libero"));
+        if (proteanStab) {
+            notes.add(hasAbility(attacker, "Libero") ? "Libero STAB" : "Protean STAB");
+            return 1.5;
+        }
         if (hasAbility(attacker, "Adaptability") && originalStab && teraStab) {
             notes.add("Adaptability Tera STAB");
             return 2.25;

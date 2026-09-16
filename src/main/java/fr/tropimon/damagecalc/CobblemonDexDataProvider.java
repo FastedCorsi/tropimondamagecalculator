@@ -12,7 +12,6 @@ import net.minecraft.registry.Registries;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Language;
 
 import java.io.Reader;
 import java.io.BufferedReader;
@@ -197,7 +196,7 @@ final class CobblemonDexDataProvider {
 
     private static void loadSpeciesFromFabricModRoots(LinkedHashMap<String, SpeciesResourceData> output) {
         try {
-            for (ModContainer mod : FabricLoader.getInstance().getAllMods()) {
+            for (ModContainer mod : FabricLoader.getInstance().getModContainer("cobblemon").stream().toList()) {
                 for (Path root : mod.getRootPaths()) {
                     loadSpeciesFromRoot(output, root, "data/cobblemon/species");
                     loadSpeciesFromRoot(output, root, "data/cobblemon/species_additions");
@@ -295,7 +294,7 @@ final class CobblemonDexDataProvider {
             if (hiddenAbility) {
                 raw = raw.substring(2);
             }
-            String display = abilityDisplayName(raw);
+            String display = canonicalAbilityName(raw);
             if (!display.isBlank()) {
                 legal.add(display);
                 if (hiddenAbility) {
@@ -310,28 +309,12 @@ final class CobblemonDexDataProvider {
         }
     }
 
-    private static String abilityDisplayName(String raw) {
+    static String canonicalAbilityName(String raw) {
         String id = raw == null ? "" : raw.trim();
-        int colon = id.indexOf(':');
-        if (colon >= 0) {
-            id = id.substring(colon + 1);
-        }
-        id = TropimonDex.normalize(id);
-        if (id.isBlank()) {
-            return "";
-        }
-        String key = "cobblemon.ability." + id;
-        Language language = Language.getInstance();
-        if (language.hasTranslation(key)) {
-            String translated = language.get(key);
-            if (!translated.isBlank() && !translated.equals(key)) {
-                return translated;
-            }
-        }
-        return cleanCobblemonName(id);
+        return id.isBlank() ? "" : cleanCobblemonName(id);
     }
 
-    private static ArrayList<FormResourceData> formResourceData(String speciesId, JsonObject speciesJson,
+    static ArrayList<FormResourceData> formResourceData(String speciesId, JsonObject speciesJson,
                                                                LinkedHashSet<String> baseLegalAbilities,
                                                                LinkedHashSet<String> baseHiddenAbilities) {
         ArrayList<FormResourceData> forms = new ArrayList<>();
@@ -358,8 +341,9 @@ final class CobblemonDexDataProvider {
             ArrayList<String> aspects = stringArray(form, "aspects");
             EnumMap<Stat, Integer> stats = parseStats(form, baseStats);
             PokeType primary = parseType(form, "primaryType", basePrimary);
-            PokeType secondary = parseType(form, "secondaryType", baseSecondary);
-            String normalizedFormName = TropimonDex.normalize(formName);
+            boolean overridesPrimary = form.has("primaryType") && form.get("primaryType").isJsonPrimitive();
+            PokeType secondary = parseType(form, "secondaryType", overridesPrimary ? PokeType.NONE : baseSecondary);
+            String normalizedFormName = TropimonDex.normalizeFormName(formName);
             if (normalizedFormName.equals("normal") || normalizedFormName.equals("standard")) {
                 continue;
             }
@@ -403,7 +387,7 @@ final class CobblemonDexDataProvider {
             if (formName.isBlank() && formShowdown.isBlank()) {
                 continue;
             }
-            String normalizedFormName = TropimonDex.normalize(formName);
+            String normalizedFormName = TropimonDex.normalizeFormName(formName);
             String id = !formShowdown.isBlank() && !formShowdown.equals(baseSpecies.id())
                     ? formShowdown
                     : baseSpecies.id() + normalizedFormName;
@@ -417,9 +401,6 @@ final class CobblemonDexDataProvider {
                 primary = baseSpecies.primaryType();
             }
             PokeType secondary = typeFromCobblemon(invokeOptional(form, "getSecondaryType"));
-            if (secondary == PokeType.NONE) {
-                secondary = baseSpecies.secondaryType();
-            }
             ArrayList<String> aspects = stringList(invokeOptional(form, "getAspects"));
             Object weightValue = invokeOptional(form, "getWeight");
             double weightKg = weightValue instanceof Number number ? number.doubleValue() : baseSpecies.weightKg();
@@ -754,9 +735,9 @@ final class CobblemonDexDataProvider {
         if (template == null) {
             template = potential;
         }
-        String display = cleanCobblemonName(displayText(invokeOptional(template, "getDisplayName")));
+        String display = canonicalAbilityName(text(invokeOptional(template, "getName")));
         if (display.isBlank()) {
-            display = cleanCobblemonName(text(invokeOptional(template, "getName")));
+            display = canonicalAbilityName(displayText(invokeOptional(template, "getDisplayName")));
         }
         if (!display.isBlank()) {
             names.add(display);
@@ -917,9 +898,9 @@ final class CobblemonDexDataProvider {
         Class<?> abilitiesClass = Class.forName("com.cobblemon.mod.common.api.abilities.Abilities");
         List<?> abilities = asList(abilitiesClass.getMethod("all").invoke(null));
         for (Object ability : abilities) {
-            String display = cleanCobblemonName(text(invokeOptional(ability, "getDisplayName")));
+            String display = canonicalAbilityName(text(invokeOptional(ability, "getName")));
             if (display.isBlank()) {
-                display = cleanCobblemonName(text(invokeOptional(ability, "getName")));
+                display = canonicalAbilityName(displayText(invokeOptional(ability, "getDisplayName")));
             }
             if (!display.isBlank()) {
                 output.add(display);

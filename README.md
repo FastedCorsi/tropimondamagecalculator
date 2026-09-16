@@ -1,10 +1,10 @@
 # Tropimon Damage Calculator
 
+By FastedCorsi
+
 Tropimon Damage Calculator is a client-side, in-game damage calculator for Cobblemon on Minecraft 1.21.1.
 
 It reads Pokemon, forms, moves, abilities, held items, models, type icons, and localized descriptions from the installed Cobblemon content. It does not use an external Pokemon database or API.
-
-![Calculator overview](docs/screenshots/calculator-overview.png)
 
 ## Features
 
@@ -31,8 +31,6 @@ Change the binding in:
 `Options > Controls > Key Binds > Tropimon Damage Calculator`
 
 Minecraft keeps an existing user binding when the mod is updated, even if the default changes.
-
-![Team Preview](docs/screenshots/team-preview.png)
 
 ## Documentation
 
@@ -64,6 +62,14 @@ Minecraft keeps an existing user binding when the mod is updated, even if the de
 
 The remapped mod JAR is generated in `build/libs`.
 
+The build also checks publication privacy, including compiled constants and embedded
+resources. Use `./gradlew.bat verifyDistribution` to repeat these checks and generate
+the reviewed source ZIP in `build/distributions`. Do not publish the entire working
+directory or old files from `exports`.
+
+See [distribution privacy](docs/distribution-privacy.md) for the permanent rules,
+optional private detection terms, exclusions, and Git identity check.
+
 ## Notes
 
 This project is client-side and does not modify battle outcomes or automate player actions. Damage is calculated from the information exposed by Cobblemon and the values configured in the interface.
@@ -71,3 +77,11 @@ This project is client-side and does not modify battle outcomes or automate play
 Tropimon Damage Calculator is an independent project and is not an official Cobblemon mod.
 
 All rights reserved.
+
+
+## Mises à jour automatiques
+
+Le mod vérifie sa propre Release GitHub au démarrage, au maximum une fois toutes les six heures. Lorsqu'une version plus récente est disponible, son JAR et son SHA-256 sont contrôlés, puis la mise à jour est installée après l'arrêt de Minecraft avec sauvegarde de l'ancien JAR. Le launcher peut rester ouvert.
+
+La vérification s'effectue en arrière-plan et n'ajoute aucun travail par tick. Elle peut être désactivée avec "enabled": false dans config/tropimon_damage_calc-updater.json.
+

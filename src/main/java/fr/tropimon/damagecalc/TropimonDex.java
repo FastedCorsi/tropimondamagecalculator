@@ -261,51 +261,73 @@ final class TropimonDex {
 
     static SpeciesData findFormSpecies(String baseSpeciesId, String formName, String formShowdownId, List<String> aspects) {
         load();
+        return selectFormSpecies(SPECIES.values(), baseSpeciesId, formName, formShowdownId, aspects);
+    }
+
+    static SpeciesData selectFormSpecies(Iterable<SpeciesData> candidates, String baseSpeciesId,
+                                         String formName, String formShowdownId, List<String> aspects) {
         String base = normalize(baseSpeciesId);
-        String form = normalize(formName);
+        String form = normalizeFormName(formName);
         String showdown = normalize(formShowdownId);
-        if (!showdown.isBlank()) {
-            SpeciesData exact = SPECIES.get(showdown);
-            if (exact != null && (base.isBlank() || normalize(exact.cobblemonSpeciesId()).equals(base) || exact.id().startsWith(base))) {
-                return exact;
-            }
-        }
-        if (!base.isBlank() && !form.isBlank()) {
-            SpeciesData exact = SPECIES.get(base + form);
-            if (exact != null) {
-                return exact;
-            }
-        }
         ArrayList<String> normalizedAspects = new ArrayList<>();
         for (String aspect : aspects == null ? List.<String>of() : aspects) {
-            String normalized = normalize(aspect);
+            String normalized = normalizeFormAspect(aspect);
             if (!normalized.isBlank()) {
                 normalizedAspects.add(normalized);
             }
         }
+        String formAspect = normalizeFormAspect(formName);
+        if (!formAspect.isBlank() && !normalizedAspects.contains(formAspect)) {
+            normalizedAspects.add(formAspect);
+        }
         SpeciesData bestNameMatch = null;
         SpeciesData bestAspectMatch = null;
+        SpeciesData exactShowdown = null;
         int bestAspectScore = 0;
-        for (SpeciesData species : SPECIES.values()) {
+        boolean bestAspectMatchesName = false;
+        for (SpeciesData species : candidates) {
             if (!base.isBlank() && !normalize(species.cobblemonSpeciesId()).equals(base) && !species.id().startsWith(base)) {
                 continue;
             }
+            if (!showdown.isBlank() && species.id().equals(showdown)) {
+                exactShowdown = species;
+                if (isSpecificForm(species, base)) {
+                    return species;
+                }
+            }
+            String speciesName = normalizeFormName(species.name());
+            boolean matchesFormName = !form.isBlank()
+                    && (species.id().contains(form) || speciesName.contains(form));
             if (!normalizedAspects.isEmpty()) {
                 int aspectScore = matchingAspectCount(species, normalizedAspects);
                 if (aspectScore > bestAspectScore
                         || aspectScore == bestAspectScore && aspectScore > 0
-                        && bestAspectMatch != null && species.id().compareTo(bestAspectMatch.id()) < 0) {
+                        && (matchesFormName && !bestAspectMatchesName
+                        || matchesFormName == bestAspectMatchesName && bestAspectMatch != null
+                        && species.id().compareTo(bestAspectMatch.id()) < 0)) {
                     bestAspectMatch = species;
                     bestAspectScore = aspectScore;
+                    bestAspectMatchesName = matchesFormName;
                 }
             }
-            String speciesName = normalize(species.name());
-            if (!form.isBlank() && (species.id().contains(form) || speciesName.contains(form))
+            if (matchesFormName
                     && (bestNameMatch == null || species.id().compareTo(bestNameMatch.id()) < 0)) {
                 bestNameMatch = species;
             }
         }
-        return bestAspectMatch != null ? bestAspectMatch : bestNameMatch;
+        if (bestAspectMatch != null) {
+            return bestAspectMatch;
+        }
+        if (bestNameMatch != null) {
+            return bestNameMatch;
+        }
+        return exactShowdown;
+    }
+
+    private static boolean isSpecificForm(SpeciesData species, String base) {
+        String speciesId = normalize(species.id());
+        String cobblemonBase = normalize(species.cobblemonSpeciesId());
+        return !speciesId.equals(cobblemonBase);
     }
 
     private static int matchingAspectCount(SpeciesData species, List<String> normalizedAspects) {
@@ -314,12 +336,26 @@ final class TropimonDex {
         }
         int matches = 0;
         for (String speciesAspect : species.aspects()) {
-            String normalizedSpeciesAspect = normalize(speciesAspect);
-            if (!normalizedSpeciesAspect.isBlank() && normalizedAspects.contains(normalizedSpeciesAspect)) {
-                matches++;
-            }
+            String normalizedSpeciesAspect = normalizeFormAspect(speciesAspect);
+            if (normalizedSpeciesAspect.isBlank()) continue;
+            if (!normalizedAspects.contains(normalizedSpeciesAspect)) return 0;
+            matches++;
         }
         return matches;
+    }
+
+    private static String normalizeFormAspect(String aspect) {
+        return switch (normalizeFormName(aspect)) {
+            case "alola", "alolan" -> "alola";
+            case "galar", "galarian" -> "galar";
+            case "hisui", "hisuian" -> "hisui";
+            case "paldea", "paldean" -> "paldea";
+            default -> normalizeFormName(aspect);
+        };
+    }
+
+    static String normalizeFormName(String value) {
+        return normalize(value == null ? "" : value.replace("!", "exclamation").replace("?", "question"));
     }
 
     static MoveData findMoveByQuery(String query) {

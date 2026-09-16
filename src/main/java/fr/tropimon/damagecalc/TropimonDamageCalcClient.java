@@ -35,6 +35,12 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
     private static boolean lastBattleButtonVisible;
     private static long nextBattleAutoSyncTick;
     private static long lastBattleSnapshotFingerprint = Long.MIN_VALUE;
+    private static long clientTickCounter;
+    private static long nextPreviewCaptureTick;
+    private static Screen lastPreviewScreen;
+
+    private static final long IDLE_BATTLE_POLL_TICKS = 5L;
+    private static final long PREVIEW_CAPTURE_INTERVAL_TICKS = 10L;
 
     private static final int BATTLE_TILE_W = 90;
     private static final int BATTLE_TILE_H = 26;
@@ -46,6 +52,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        TropimonSelfUpdater.start(LOGGER);
         ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
             @Override
             public Identifier getFabricId() {
@@ -54,6 +61,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
 
             @Override
             public void reload(ResourceManager manager) {
+                DamageCalculationCache.clearShared();
                 TropimonDex.invalidateCobblemonData();
                 TropimonRandomBattleSets.reload();
                 CobblemonBattleDataProvider.invalidateRuntimeCaches();
@@ -64,6 +72,7 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
         });
         TropimonDex.load();
         TropimonRandomBattleSets.load();
+        TropimonRankedUsageService.INSTANCE.initialize();
 
         openCalculatorKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.tropimon_damage_calc.open",
@@ -88,9 +97,12 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
                 CobblemonBattleDataProvider.observeSystemMessage(message));
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            TropimonRandomBattleSets.pollForUpdates();
-            CobblemonBattleDataProvider.tickBattleLifecycle(client);
-            CobblemonBattleDataProvider.captureVisibleTeamPreview(client.currentScreen);
+            clientTickCounter++;
+            if (clientTickCounter % IDLE_BATTLE_POLL_TICKS == 0L) {
+                CobblemonBattleDataProvider.tickBattleLifecycle(client);
+                logBattleButtonVisibility(client);
+            }
+            captureVisibleTeamPreview(client);
 
             if (!loadMessageSent && client.player != null) {
                 loadMessageSent = true;
@@ -115,9 +127,19 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
             }
             rawOpenKeyDown = rawPressed;
 
-            logBattleButtonVisibility(client);
             autoSyncOpenCalculator(client);
         });
+    }
+
+    private static void captureVisibleTeamPreview(MinecraftClient client) {
+        Screen screen = client.currentScreen;
+        boolean changed = screen != lastPreviewScreen;
+        if (!changed && (screen == null || clientTickCounter < nextPreviewCaptureTick)) {
+            return;
+        }
+        lastPreviewScreen = screen;
+        nextPreviewCaptureTick = clientTickCounter + PREVIEW_CAPTURE_INTERVAL_TICKS;
+        CobblemonBattleDataProvider.captureVisibleTeamPreview(screen);
     }
 
     private static boolean isConfiguredOpenKeyPressed(MinecraftClient client) {
@@ -312,6 +334,8 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
         String opponent = battle.opponent() == null ? "-" : battle.opponent().species.name();
         client.player.sendMessage(Text.translatable("diagnostic.tropimon_damage_calc.dex",
                 TropimonDex.diagnosticSummary()), false);
+        client.player.sendMessage(Text.translatable("diagnostic.tropimon_damage_calc.ranked",
+                TropimonRankedUsageService.INSTANCE.diagnosticSummary()), false);
         client.player.sendMessage(Text.translatable("diagnostic.tropimon_damage_calc.battle",
                 CobblemonBattleDataProvider.isInBattle(), battle.doubles() ? "Duo" : "Solo", player, opponent,
                 CobblemonBattleDataProvider.playerParty(client).size()), false);
@@ -329,3 +353,4 @@ public final class TropimonDamageCalcClient implements ClientModInitializer {
         }
     }
 }
+

@@ -32,11 +32,7 @@ Minecraft 1.21.1, Fabric et Cobblemon 1.7.2. Le mod est uniquement côté client
 
 Code et informations : https://github.com/FastedCorsi/tropimondamagecalculator
 
-Interface :
-https://raw.githubusercontent.com/FastedCorsi/tropimondamagecalculator/main/docs/screenshots/calculator-overview.png
-
-Team Preview :
-https://raw.githubusercontent.com/FastedCorsi/tropimondamagecalculator/main/docs/screenshots/team-preview.png
+By FastedCorsi
 
 Tropimon Damage Calculator est un projet indépendant et non officiel.
 

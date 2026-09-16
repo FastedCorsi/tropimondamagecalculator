@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "damagecalc_smoke",
+  "version": "1.0.0",
+  "name": "Damage Calculator Verification Harness",
+  "authors": ["By FastedCorsi"],
+  "environment": "client",
+  "entrypoints": { "client": ["fr.tropimon.damagecalc.DamageCalcRuntimeSmoke"] }
+}

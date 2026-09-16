@@ -4,7 +4,6 @@ Tropimon Damage Calculator est un calculateur de dégâts **entièrement intégr
 
 Le mod est uniquement côté client. Il ne joue aucun tour, ne modifie pas le combat et ne révèle pas les informations privées de l'adversaire.
 
-![Vue générale du calculateur](screenshots/calculator-overview.png)
 
 ## Source des données
 
@@ -69,7 +68,6 @@ Les entrées marquées comme appartenant à l'équipe du joueur contiennent les 
 
 Pendant un Team Preview compatible, le mod enregistre les espèces et formes montrées par Cobblemon. Il déduplique ensuite cette liste avec les Pokémon réellement envoyés au combat.
 
-![Team Preview compatible](screenshots/team-preview.png)
 
 Pour l'adversaire, seules les informations légitimement visibles sont enregistrées. Un objet, talent ou mouvement inconnu reste inconnu jusqu'à sa révélation ou sa saisie manuelle.
 
