@@ -76,7 +76,7 @@ try {
 
     $root = (Resolve-Path -LiteralPath $LauncherRoot).Path
     $mods = (Resolve-Path -LiteralPath (Join-Path $root 'mods')).Path
-    if ([IO.Path]::GetDirectoryName($mods) -ine $root) { throw 'Dossier mods hors de l’instance choisie.' }
+    if ([IO.Path]::GetDirectoryName($mods) -ine $root) { throw 'Dossier mods hors de cette instance.' }
     foreach ($directory in @($root, $mods)) {
         if ((Get-Item -LiteralPath $directory).Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw 'Instance redirigée non vérifiable.'
