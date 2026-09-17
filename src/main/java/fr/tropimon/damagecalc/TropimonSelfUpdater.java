@@ -348,23 +348,31 @@ final class TropimonSelfUpdater {
                 [Parameter(Mandatory=$true)][string]$ModId
             )
             $ErrorActionPreference = 'Stop'
+            function Get-Sha256([string]$Path) {
+                $stream = [IO.File]::OpenRead($Path)
+                try {
+                    $sha = [Security.Cryptography.SHA256]::Create()
+                    try { return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
+                    finally { $sha.Dispose() }
+                } finally { $stream.Dispose() }
+            }
             while ($null -ne (Get-Process -Id $ParentPid -ErrorAction SilentlyContinue)) {
                 Start-Sleep -Milliseconds 500
             }
             if (-not (Test-Path -LiteralPath $Staged -PathType Leaf)) { exit 2 }
             if (-not (Test-Path -LiteralPath $Target -PathType Leaf)) { exit 3 }
-            if ((Get-FileHash -LiteralPath $Staged -Algorithm SHA256).Hash -ne $NewHash) { exit 4 }
-            if ((Get-FileHash -LiteralPath $Target -Algorithm SHA256).Hash -ne $ExpectedOldHash) { exit 5 }
-            $modsDir = Split-Path -LiteralPath $Target -Parent
-            $instanceDir = Split-Path -LiteralPath $modsDir -Parent
+            if ((Get-Sha256 $Staged) -ne $NewHash) { exit 4 }
+            if ((Get-Sha256 $Target) -ne $ExpectedOldHash) { exit 5 }
+            $modsDir = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Target))
+            $instanceDir = [IO.Path]::GetDirectoryName($modsDir)
             $backupDir = Join-Path $instanceDir 'tropimon-updater-backups'
             New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
             $stamp = [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss')
-            $targetName = Split-Path -LiteralPath $Target -Leaf
+            $targetName = [IO.Path]::GetFileName($Target)
             $backup = Join-Path $backupDir ($ModId + '-' + $stamp + '-' + $targetName)
             $temporary = Join-Path $modsDir ('.' + $targetName + '.updating')
             Copy-Item -LiteralPath $Staged -Destination $temporary -Force
-            if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ne $NewHash) {
+            if ((Get-Sha256 $temporary) -ne $NewHash) {
                 Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue
                 exit 6
             }
