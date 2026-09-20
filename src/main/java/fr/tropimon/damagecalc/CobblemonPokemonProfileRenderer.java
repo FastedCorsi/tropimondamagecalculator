@@ -50,7 +50,7 @@ final class CobblemonPokemonProfileRenderer {
                 return false;
             }
 
-            context.enableScissor(x, y, x + size, y + size);
+            FittedScreen.scissor(context, x, y, x + size, y + size);
             scissorEnabled = true;
             context.getMatrices().push();
             matrixPushed = true;

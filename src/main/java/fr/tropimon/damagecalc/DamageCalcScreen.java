@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public final class DamageCalcScreen extends Screen {
+public final class DamageCalcScreen extends FittedScreen {
     private static final int PANEL = 280;
     private static final int ROW = 18;
     private static final int MOVE_ROW = 20;
@@ -67,7 +67,7 @@ public final class DamageCalcScreen extends Screen {
     private List<TropimonRandomBattleSets.RandomBattleSet> defenderRandomSetOptions = List.of();
 
     public DamageCalcScreen(DamageCalcState state) {
-        super(Text.translatable("screen.tropimon_damage_calc.title"));
+        super(Text.translatable("screen.tropimon_damage_calc.title"), 608, 380);
         this.state = state;
     }
 
@@ -94,7 +94,7 @@ public final class DamageCalcScreen extends Screen {
     }
 
     @Override
-    protected void init() {
+    protected void initContent() {
         searchFields.clear();
         activeButtons.clear();
         for (ButtonWidget[] side : damageButtons) {
@@ -557,9 +557,8 @@ public final class DamageCalcScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+    public void renderContent(DrawContext context, int mouseX, int mouseY, float delta) {
         state.prepareCalculations();
-        renderBackground(context, mouseX, mouseY, delta);
         int panelW = panelWidth();
         int panelX = (width - panelW) / 2;
         int panelY = 8;
@@ -590,7 +589,7 @@ public final class DamageCalcScreen extends Screen {
         }
         refreshDamageButtons();
 
-        super.render(context, mouseX, mouseY, delta);
+        renderWidgets(context, mouseX, mouseY, delta);
         drawCloseButtonHover(context);
         drawActiveButtons(context);
         if (showMoves) {
@@ -608,7 +607,7 @@ public final class DamageCalcScreen extends Screen {
         if (mouseX < x + 36 || mouseX >= x + 64 || mouseY < y || mouseY >= y + 10 + 6 * ROW
                 || pokemon.statsKnown || pokemon.evsManuallyEdited || pokemon.rankedEvSpread == null
                 || !pokemon.rankedEvSpread.matches(pokemon)) return;
-        context.drawTooltip(textRenderer, Text.translatable("screen.tropimon_damage_calc.ranked_evs",
+        queueTooltip(textRenderer, Text.translatable("screen.tropimon_damage_calc.ranked_evs",
                 String.format(Locale.ROOT, "%.2f", pokemon.rankedEvSpread.usage())), mouseX, mouseY);
     }
 
@@ -732,7 +731,7 @@ public final class DamageCalcScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean clickContent(double mouseX, double mouseY, int button) {
         TropimonDamageCalcClient.debug("mouseClicked x=" + (int) mouseX + " y=" + (int) mouseY + " button=" + button
                 + " open=" + openKind + " active=" + activeKind + " rendered=" + renderedSuggestions.size());
         if (applyClickedSuggestion((int) mouseX, (int) mouseY)) {
@@ -746,7 +745,7 @@ public final class DamageCalcScreen extends Screen {
             reopen();
             return true;
         }
-        boolean handled = super.mouseClicked(mouseX, mouseY, button);
+        boolean handled = super.clickContent(mouseX, mouseY, button);
 
         if (clickedField != null) {
             if (openKind != clickedField.kind) {
@@ -768,14 +767,14 @@ public final class DamageCalcScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean releaseContent(double mouseX, double mouseY, int button) {
         TropimonDamageCalcClient.debug("mouseReleased x=" + (int) mouseX + " y=" + (int) mouseY + " button=" + button
                 + " open=" + openKind + " active=" + activeKind + " rendered=" + renderedSuggestions.size());
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.releaseContent(mouseX, mouseY, button);
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean scrollContent(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         SearchField field = field(openKind);
         if (field != null) {
             List<Suggestion> suggestions = suggestionsForField(field);
@@ -798,7 +797,7 @@ public final class DamageCalcScreen extends Screen {
             }
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.scrollContent(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
@@ -1446,7 +1445,26 @@ public final class DamageCalcScreen extends Screen {
     }
 
     private ButtonWidget addButton(int x, int y, int w, int h, String label, ButtonWidget.PressAction action) {
-        ButtonWidget button = ButtonWidget.builder(Text.literal(label), action).dimensions(x, y, w, h).build();
+        ButtonWidget button = new ButtonWidget(x, y, w, h, Text.literal(label), action,
+                java.util.function.Supplier::get) {
+            @Override protected void drawScrollableText(DrawContext context,
+                    net.minecraft.client.font.TextRenderer renderer, int margin, int color) {
+                int available = getWidth() - margin * 2;
+                int travel = renderer.getWidth(getMessage()) - available;
+                if (travel <= 0) {
+                    context.drawCenteredTextWithShadow(renderer, getMessage(), getX() + getWidth() / 2,
+                            getY() + (getHeight() - 8) / 2, color);
+                    return;
+                }
+                long period = travel + 18L;
+                long phase = (System.currentTimeMillis() / 45L) % (period * 2);
+                int offset = (int) Math.clamp(Math.min(phase, period * 2 - phase) - 9, 0, travel);
+                scissor(context, getX() + margin, getY(), getX() + getWidth() - margin, getY() + getHeight());
+                context.drawTextWithShadow(renderer, getMessage(), getX() + margin - offset,
+                        getY() + (getHeight() - 8) / 2, color);
+                context.disableScissor();
+            }
+        };
         addDrawableChild(button);
         return button;
     }
