@@ -89,3 +89,15 @@ Cette règle demandée par l'utilisateur s'applique à toute création, correcti
 - L'updater accepte uniquement la Release officielle du dépôt du mod, vérifie le SHA-256 puis l'identifiant et la version de fabric.mod.json. Il prépare hors du dossier mods, attend l'arrêt de Minecraft sans fermer le launcher, conserve une sauvegarde hors des mods chargés et n'écrase jamais une cible modifiée depuis la préparation.
 - Conserver une vérification asynchrone espacée, sans travail par tick ou par frame. Une livraison de code doit mettre à jour le dépôt, le tag et la Release correspondants après réussite des contrôles de compatibilité, de tests et de confidentialité.
 
+
+
+## Consentement et mise à jour indépendante du launcher
+
+- Toute récupération de fichier, y compris JAR, empreinte et catalogue externe, exige un accord éclairé préalable du joueur. Ne jamais télécharger en arrière-plan avant cet accord.
+- La vérification des métadonnées de mise à jour est désactivée sans consentement explicite ; un ancien `enabled: true` généré automatiquement ne vaut pas accord. L'autorisation de vérifier ne vaut jamais autorisation de télécharger ou installer une version.
+- Présenter le mod, la version, la source officielle, les fichiers et le remplacement différé avec sauvegarde avant le bouton de téléchargement. Refuser, reporter ou fermer ne déclenche aucun téléchargement.
+- Chaque mod contient sa propre implémentation. Utiliser le Java existant et le JAR réellement chargé ; ne demander aucune modification du launcher, installation d'un outil ou chemin personnel.
+- Gérer le dossier mods classique et le stockage Tropimon reconnu. Conserver le nom enregistré, synchroniser les deux copies et préserver le suivi ainsi que les autres mods. Une disposition inconnue doit bloquer proprement, sans contourner une protection du launcher.
+- Tester le helper réellement exporté : attente de Minecraft, fichiers modifiés/verrouillés, sauvegarde, deux types de stockage et absence de consentement. Ne pas confondre un installateur local validé avec l'updater livré aux joueurs.
+
+- Canal de transition : publier les nouvelles releases stables avec `--latest=false` et la mention `<!-- tropimon-consent-updater:2 -->` dans leurs notes. Vérifier après publication que `/releases/latest` reste inchangé ; les anciens updaters non consentis ne doivent pas être déclenchés pour récupérer le correctif. Le nouvel updater sélectionne ce canal dans `/releases?per_page=20`. Une première installation manuelle peut être nécessaire depuis une version ancienne.

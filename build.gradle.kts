@@ -182,6 +182,8 @@ val prepareReleaseDelivery = tasks.register("prepareReleaseDelivery") {
         copyAndHash(localDirectory.resolve("TropimonDamageCalc-${project.version}+1.21.1-LOCAL.jar"))
         file("tools/install-local-deferred.ps1")
             .copyTo(localDirectory.resolve("install-local-deferred.ps1"), overwrite = true)
+        file("tools/InstallManagedLocalMod.ps1")
+            .copyTo(localDirectory.resolve("InstallManagedLocalMod.ps1"), overwrite = true)
     }
 }
 
